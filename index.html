@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Neura Sales Prompt Generator</title>
+  <title>Neura Prompt Generator</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
 
   <script>
@@ -382,6 +382,8 @@
       transition: transform .25s ease;
     }
     .selection-indicator.right { transform: translateX(100%); }
+    /* Selector kategori: jumlah segmen dihitung JavaScript dari daftar CATEGORIES */
+    .cat-selector .type-btn { padding: 12px 6px; line-height: 1.25; }
 
     /* Buttons */
     .submit-btn {
@@ -618,7 +620,7 @@
   <!-- HEADER -->
   <div class="header-container" id="header">
     <div class="header-content">
-      <h1>SALES PROMPT GENERATOR</h1>
+      <h1>PROMPT GENERATOR</h1>
       <div id="greet"></div>
     </div>
   </div>
@@ -641,7 +643,14 @@
           <button class="type-btn" data-persona="miku">MIKU</button>
         </div>
       </div>
-      <div class="card">
+      <div class="card" id="catCard">
+        <h2>Mau bikin apa?</h2>
+        <div class="type-selector cat-selector" id="catSelector">
+          <div class="selection-indicator" id="indicatorCat"></div>
+          <!-- tombol kategori dibuat otomatis oleh JavaScript dari CATEGORIES -->
+        </div>
+      </div>
+      <div class="card" id="modeCard">
         <h2>Mau ngapain?</h2>
         <div class="type-selector">
           <div class="selection-indicator" id="indicatorMode"></div>
@@ -689,7 +698,7 @@
       },
       miku: {
         accent: "sekai",
-        greet: "Halo halo! Yuk bikin prompt landing page bareng Miku~",
+        greet: "Halo halo! Yuk bikin prompt bareng Miku~",
         missing: (list) => "Eh, masih ada yang kosong nih: " + list + ". Isi dulu ya~",
         copied: "Tersalin! Semangat jualannya ya~",
         warnHead: "Eh, ada beberapa hal yang bisa dicek dulu nih~",
@@ -814,6 +823,182 @@
     ];
 
     /* ===================================================================
+       DATA KATEGORI GAMBAR (LOGO dan GAMBAR PRODUK)
+       Kunci tiap kamus = teks yang tampil di form (Indonesia).
+       Nilainya = potongan prompt berbahasa Inggris, karena model gambar
+       umumnya lebih patuh pada instruksi berbahasa Inggris.
+       Mau tambah pilihan? Cukup tambah satu baris di kamus yang sesuai,
+       daftar pilihan di form ikut otomatis (dibuat dari Object.keys).
+       =================================================================== */
+    const IMG_TOOLS = [
+      "ChatGPT atau Gemini (deskripsi lengkap)",
+      "Midjourney (satu baris dengan parameter)",
+      "Stable Diffusion atau Flux (prompt dan negative prompt)"
+    ];
+
+    // Warna (dipakai logo dan produk). Nilai kosong = biar AI yang menentukan.
+    const IMG_COLOR = {
+      "Netral atau monokrom": "neutral monochrome",
+      "Netral (hitam dan putih)": "black and white only",
+      "Biru": "blue", "Hijau": "green", "Merah": "red", "Oranye": "orange", "Ungu": "purple", "Kuning": "yellow",
+      "Kuning atau emas": "yellow and gold",
+      "Coklat atau earth tone": "brown earth tones",
+      "Pastel": "soft pastel",
+      "Biar AI yang menentukan": ""
+    };
+
+    // ----- LOGO -----
+    const LOGO_TYPE = {
+      "Kombinasi (ikon dan nama brand)": "a combination mark logo, a simple icon paired with the brand name",
+      "Wordmark (hanya teks nama brand)": "a wordmark logo, typography only with no icon",
+      "Ikon atau simbol saja": "an icon-only logo mark, a symbol with no text at all",
+      "Lettermark (inisial)": "a lettermark logo built from the brand initials",
+      "Emblem atau badge": "an emblem logo, icon and text contained inside a badge shape"
+    };
+    const LOGO_STYLE = {
+      "Minimalis geometris": "minimalist geometric style, built from simple shapes with clean precise lines",
+      "Flat modern": "modern flat vector style, solid color shapes",
+      "Monoline (garis tunggal)": "monoline style, one consistent stroke weight with rounded line ends",
+      "Vintage atau retro": "vintage retro style with classic proportions and crisp clean edges",
+      "Handmade atau hand-drawn": "hand-drawn organic style with slightly irregular lines, still clean and legible",
+      "Maskot atau karakter": "friendly mascot style, a simple character with bold outlines and flat colors",
+      "Mewah dan elegan": "luxury elegant style, refined thin lines, generous spacing, fine high-contrast lettering"
+    };
+    const LOGO_BG = {
+      "Putih polos (disarankan)": "plain pure white background, nothing else in the frame",
+      "Hitam polos": "plain solid black background, nothing else in the frame",
+      "Abu-abu netral": "plain light neutral gray background, nothing else in the frame",
+      "Mockup di permukaan nyata (untuk presentasi)": "presented as a clean realistic mockup on a simple surface such as a business card or storefront sign, the logo remains the main subject"
+    };
+    const LOGO_VAR = {
+      "Satu konsep": "",
+      "Eksplorasi: 4 arah konsep berbeda (kotak 2x2)": "show 4 clearly different concept directions in a 2x2 grid, same background and equal spacing, no labels or captions"
+    };
+    const LOGO_VIBE = {
+      "Modern": "modern", "Hangat": "warm", "Premium": "premium", "Playful": "playful", "Tegas": "bold and confident",
+      "Natural": "natural and organic", "Teknologi": "tech-savvy", "Tradisional": "traditional", "Minimalis": "minimal", "Ramah": "friendly"
+    };
+    const LOGO_RATIO = ["1:1 (persegi, paling aman)", "4:3 (sedikit lebar)", "16:9 (lebar, untuk banner)"];
+
+    // ----- GAMBAR PRODUK -----
+    const PD_CAT = {
+      "Lainnya (umum)": "",
+      "Makanan dan minuman": "appetizing and fresh, believable food textures, steam or condensation only where it makes sense",
+      "Fashion dan aksesori": "natural fabric drape, accurate cut, stitching and trims",
+      "Kosmetik dan skincare": "clean hygienic look, accurate packaging, soft highlights on glass or glossy surfaces",
+      "Elektronik dan gadget": "accurate buttons, ports and screen, clean controlled reflections",
+      "Rumah dan dekorasi": "believable scale and a coherent room context",
+      "Kerajinan atau handmade": "visible craftsmanship and natural material texture",
+      "Kemasan (box, pouch, botol)": "accurate packaging proportions, crisp flat print areas, true-to-life materials"
+    };
+    const PD_SHOT = {
+      "Studio polos (katalog e-commerce)": "professional e-commerce product photo, a single product centered, studio shot",
+      "Lifestyle (dipakai dalam situasi nyata)": "lifestyle product photo showing the product in a natural real-life setting",
+      "Flat lay (dari atas)": "flat lay product photo with a balanced arrangement on a surface",
+      "Hero shot dramatis untuk banner": "dramatic hero product shot for a website banner, with empty space reserved for headline copy",
+      "Close-up detail tekstur": "close-up detail shot highlighting material texture and craftsmanship",
+      "Dengan model memegang atau memakai produk": "lifestyle photo of a person holding or using the product, the product stays the clear hero, natural hands and proportions",
+      "Mockup kemasan atau label": "clean packaging mockup render with accurate proportions"
+    };
+    const PD_ANGLE = {
+      "Setinggi mata (eye level)": "eye-level camera angle",
+      "Sedikit dari atas (45 derajat)": "slightly elevated 45-degree camera angle",
+      "Tegak lurus dari atas": "straight top-down camera angle",
+      "Rendah (low angle, terkesan megah)": "low camera angle that makes the product look prominent",
+      "Close-up macro": "macro close-up camera angle"
+    };
+    const PD_BG = {
+      "Putih bersih (e-commerce)": "pure clean white seamless background",
+      "Warna solid mengikuti brand": "solid color backdrop",
+      "Gradasi lembut": "soft smooth gradient backdrop",
+      "Permukaan alami (kayu, marmer, kain)": "natural surface such as wood, marble or linen",
+      "Lingkungan nyata sesuai pemakaian": "realistic environment that fits how the product is used",
+      "Biar AI yang menentukan": "a background that complements the product"
+    };
+    const PD_LIGHT = {
+      "Softbox lembut dan rata": "soft even softbox lighting with gentle natural shadows",
+      "Natural dari jendela (golden hour)": "natural window light at golden hour, warm tone",
+      "Dramatis kontras tinggi": "dramatic high-contrast lighting with defined shadows",
+      "Cerah dan ceria": "bright cheerful lighting",
+      "Moody dan gelap": "moody low-key lighting",
+      "Rim light elegan": "elegant rim lighting that outlines the product"
+    };
+    const PD_STYLE = {
+      "Minimalis ala Apple": "minimalist Apple-like aesthetic, lots of negative space, restrained palette",
+      "Premium dan elegan": "premium elegant aesthetic, refined and luxurious",
+      "Bold dan ramai ala toko online": "bold, vibrant, eye-catching marketplace aesthetic",
+      "Editorial majalah": "editorial magazine aesthetic with a styled composition",
+      "Hangat dan natural": "warm natural aesthetic with organic textures",
+      "Playful dan ramah": "playful friendly aesthetic with cheerful colors"
+    };
+    const PD_THEME = {
+      "Ikuti gaya visual": "",
+      "Terang dan cerah": "high-key bright tonality",
+      "Gelap dan dramatis": "low-key dark tonality"
+    };
+    const PD_RATIO = ["1:1 (feed Instagram dan marketplace)", "4:5 (Instagram portrait)", "9:16 (story, reels, TikTok)", "16:9 (banner web)", "3:2 (foto klasik)"];
+
+    // Struktur form LOGO (tipe kolom sama seperti SECTIONS: select, text, area, check, chips)
+    const SECTIONS_LOGO = [
+      { title: "Identitas brand", fields: [
+        { id: "lgName", label: "Nama brand", type: "text", req: true, hint: "Contoh: Kopi Senja" },
+        { id: "lgBiz", label: "Bidang usaha atau produk", type: "text", req: true, hint: "Contoh: kedai kopi rumahan" },
+        { id: "lgAud", label: "Target audiens (opsional)", type: "text", full: true, hint: "Contoh: pekerja kantoran usia 20 sampai 35 tahun" },
+        { id: "lgTagline", label: "Tagline (opsional, hanya dipakai bila logo memuat teks)", type: "text", full: true, hint: "Contoh: Ngopi tanpa buru-buru" }
+      ]},
+      { title: "Jenis dan gaya logo", fields: [
+        { id: "lgType", label: "Jenis logo", type: "select", options: Object.keys(LOGO_TYPE) },
+        { id: "lgStyle", label: "Gaya visual", type: "select", options: Object.keys(LOGO_STYLE) },
+        { id: "lgIcon", label: "Ide ikon atau simbol (opsional)", type: "text", full: true, hint: "Contoh: biji kopi dengan matahari terbenam" }
+      ]},
+      { title: "Kepribadian brand", fields: [
+        { id: "lgVibe", type: "chips", multi: true, options: Object.keys(LOGO_VIBE) }
+      ]},
+      { title: "Warna dan latar", fields: [
+        { id: "lgColor", label: "Warna utama", type: "select",
+          options: ["Biar AI yang menentukan", "Netral (hitam dan putih)", "Biru", "Hijau", "Merah", "Oranye", "Ungu", "Kuning atau emas", "Coklat atau earth tone"] },
+        { id: "lgHex", label: "Kode warna persis (opsional)", type: "text", hint: "Contoh: #1F6F5C" },
+        { id: "lgBg", label: "Latar gambar", type: "select", full: true, options: Object.keys(LOGO_BG) },
+        { id: "lgGrad", label: "Boleh memakai gradasi warna (bawaannya flat, lebih mudah dirapikan nanti)", type: "check", full: true }
+      ]},
+      { title: "Hasil dan alat", fields: [
+        { id: "imgTool", label: "Alat pembuat gambar", type: "select", full: true, options: IMG_TOOLS },
+        { id: "lgRatio", label: "Rasio gambar", type: "select", options: LOGO_RATIO },
+        { id: "lgVar", label: "Jumlah konsep", type: "select", options: Object.keys(LOGO_VAR) },
+        { id: "lgAvoid", label: "Hal yang harus dihindari (opsional)", type: "text", full: true, hint: "Contoh: jangan pakai cangkir, tanpa warna merah" }
+      ]}
+    ];
+
+    // Struktur form GAMBAR PRODUK
+    const SECTIONS_PRODUK = [
+      { title: "Produk", fields: [
+        { id: "pdName", label: "Nama atau jenis produk", type: "text", req: true, full: true, hint: "Contoh: botol parfum kaca 50 ml" },
+        { id: "pdCat", label: "Kategori produk", type: "select", full: true, options: Object.keys(PD_CAT) },
+        { id: "pdDesc", label: "Deskripsi tampilan produk", type: "area", req: true, full: true, hint: "Warna, bahan, bentuk, detail penting. Tulis apa adanya, jangan dilebih-lebihkan." },
+        { id: "pdText", label: "Teks di label produk yang harus terbaca (opsional)", type: "text", full: true, hint: "Contoh: SENJA COFFEE" },
+        { id: "pdPhoto", label: "Saya punya foto produk asli untuk dijadikan referensi (sangat disarankan untuk produk nyata)", type: "check", full: true }
+      ]},
+      { title: "Jenis foto dan komposisi", fields: [
+        { id: "pdShot", label: "Jenis foto", type: "select", full: true, options: Object.keys(PD_SHOT) },
+        { id: "pdAngle", label: "Sudut kamera", type: "select", options: Object.keys(PD_ANGLE) },
+        { id: "pdBg", label: "Latar dan permukaan", type: "select", options: Object.keys(PD_BG) },
+        { id: "pdProps", label: "Properti pendukung (opsional)", type: "text", full: true, hint: "Contoh: biji kopi, daun, serbet linen" }
+      ]},
+      { title: "Gaya visual dan warna", fields: [
+        { id: "pdStyle", label: "Gaya visual", type: "select", full: true, options: Object.keys(PD_STYLE) },
+        { id: "pdLight", label: "Pencahayaan", type: "select", options: Object.keys(PD_LIGHT) },
+        { id: "pdTheme", label: "Tema tonal", type: "select", options: Object.keys(PD_THEME) },
+        { id: "pdColor", label: "Warna dominan latar dan suasana", type: "select", full: true,
+          options: ["Netral atau monokrom", "Biru", "Hijau", "Merah", "Oranye", "Ungu", "Kuning", "Pastel"] }
+      ]},
+      { title: "Hasil dan alat", fields: [
+        { id: "imgTool", label: "Alat pembuat gambar", type: "select", full: true, options: IMG_TOOLS },
+        { id: "pdRatio", label: "Rasio gambar", type: "select", full: true, options: PD_RATIO },
+        { id: "pdSafe", label: "Mode aman marketplace dan iklan: tanpa teks promo, stiker, watermark, atau logo merek lain di gambar", type: "check", full: true }
+      ]}
+    ];
+
+    /* ===================================================================
        BAGIAN 2: LOGIKA PROGRAM
        =================================================================== */
     const STORE_KEY = "neura-prompt-v2";
@@ -830,7 +1015,9 @@
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch (e) {}
       return Object.assign({ persona: "neru", el: [], plat: "Satu file HTML", safe: true, mode: "new",
-        keep: ["Gaya visual", "Copy bagian lain", "Struktur section", "Warna brand", "Tujuan tombol CTA"] }, saved);
+        keep: ["Gaya visual", "Copy bagian lain", "Struktur section", "Warna brand", "Tujuan tombol CTA"],
+        // kategori gambar: kolom centang dan chips perlu nilai awal di sini
+        cat: "web", lgVibe: [], lgGrad: false, pdPhoto: true, pdSafe: true }, saved);
     }
     function saveState() {
       try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -873,7 +1060,7 @@
       return wrap(label + `<input type="text" id="${f.id}" placeholder="${f.hint || ""}" value="${(value || "").replace(/"/g, "&quot;")}">`);
     }
 
-    const currentSections = () => (state.mode === "next" ? SECTIONS_NEXT : SECTIONS);
+    const currentSections = () => CATEGORIES[state.cat].sections();
 
     function renderForm() {
       $("formArea").innerHTML = currentSections().map((s) =>
@@ -1195,21 +1382,244 @@
       return L.join("\n");
     }
 
+    // ---------- perakit prompt gambar (dipakai kategori Logo dan Gambar produk) ----------
+    const val = (k) => String(state[k] || "").trim();
+    const colorEn = (v) => IMG_COLOR[v] || "";
+    const ratioOf = (v) => String(v || "1:1").split(" ")[0];
+    const hexOf = (v) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(v || "").trim()); return m ? "#" + m[1].toUpperCase() : ""; };
+
+    // o = { intro, groups: [{ title, items }], negatives: [], ratio, tail: [] }
+    // Format keluaran menyesuaikan alat yang dipilih (state.imgTool).
+    function renderImagePrompt(o) {
+      const tool = state.imgTool || IMG_TOOLS[0];
+      const groups = o.groups.filter((g) => g.items.length);
+      const flatOf = (short) => [o.intro].concat(...groups.filter((g) => !(short && g.mj === false)).map((g) => g.items));
+      const flat = flatOf(false);
+      if (tool.startsWith("Midjourney")) {
+        // Midjourney paling patuh pada prompt pendek, jadi grup aturan umum (mj:false) dilewati
+        return flatOf(true).join(", ") + ` --ar ${o.ratio}` + (o.negatives.length ? " --no " + o.negatives.join(", ") : "");
+      }
+      if (tool.startsWith("Stable")) {
+        return ["PROMPT (tempel di kolom prompt)", flat.join(", "), "",
+          "NEGATIVE PROMPT (tempel di kolom negative prompt, lewati bila alatnya tidak punya)", o.negatives.join(", "), "",
+          `RASIO (atur di pengaturan ukuran gambar): ${o.ratio}`].join("\n");
+      }
+      const L = [`Create ${o.intro}.`, ""];
+      groups.forEach((g) => { L.push(g.title); g.items.forEach((i) => L.push("- " + i)); L.push(""); });
+      if (o.negatives.length) { L.push("AVOID"); o.negatives.forEach((n) => L.push("- " + n)); L.push(""); }
+      L.push("OUTPUT", `- Aspect ratio ${o.ratio}`);
+      (o.tail || []).forEach((t) => L.push("- " + t));
+      return L.join("\n");
+    }
+
+    // ---------- kategori LOGO ----------
+    function brandInitials(n) {
+      const w = String(n || "").trim().split(/\s+/).filter(Boolean);
+      return w.length > 1 ? w.slice(0, 3).map((x) => x[0]).join("").toUpperCase() : (w[0] || "").charAt(0).toUpperCase();
+    }
+    function buildLogo() {
+      const name = val("lgName");
+      const iconOnly = state.lgType.startsWith("Ikon");
+      const letter = state.lgType.startsWith("Lettermark");
+      const wordOnly = state.lgType.startsWith("Wordmark");
+      const hasText = !iconOnly && !letter;            // kombinasi, wordmark, dan emblem memuat nama brand
+      const mockup = state.lgBg.startsWith("Mockup");
+      const grid = !!LOGO_VAR[state.lgVar];
+      const tagline = hasText ? val("lgTagline") : "";
+      const hex = hexOf(val("lgHex"));
+      const col = colorEn(state.lgColor);
+      const vibes = (state.lgVibe || []).map((v) => LOGO_VIBE[v]).filter(Boolean);
+
+      const llm = (state.imgTool || IMG_TOOLS[0]).startsWith("ChatGPT");   // hanya model berbasis chat yang paham "konteks saja"
+      const brand = [];
+      if (iconOnly) { if (llm) brand.push(`brand name for context only, do not write it in the image: ${name}`); }
+      else if (letter) { if (llm) brand.push(`brand name for context only: ${name}`); brand.push(`show only the initials "${brandInitials(name)}" as a monogram`); }
+      else brand.push(`brand name: "${name}"`);
+      brand.push(`business: ${val("lgBiz")}`);
+      if (val("lgAud")) brand.push(`target audience: ${val("lgAud")}`);
+      if (vibes.length) brand.push(`brand personality: ${vibes.join(", ")}`);
+      if (tagline) brand.push(`tagline in small text below the name: "${tagline}"`);
+
+      const concept = [];
+      if (wordOnly) {
+        concept.push("custom lettering is the main feature, with one subtle distinctive detail in a letterform");
+        if (val("lgIcon")) concept.push(`inspiration for that detail: ${val("lgIcon")}`);
+      } else if (letter) {
+        concept.push("the initials styled as a unique, memorable monogram");
+      } else {
+        concept.push(val("lgIcon") ? `symbol idea: ${val("lgIcon")}` : "a simple, memorable symbol that suits the business");
+      }
+      concept.push(LOGO_STYLE[state.lgStyle]);
+
+      const color = [];
+      if (hex) color.push(`exact brand color ${hex}`); else if (col) color.push(`main color: ${col}`);
+      color.push(state.lgGrad ? "limited palette of 2 to 3 colors, soft gradients allowed" : "flat solid colors only, maximum 3 colors");
+      color.push(LOGO_BG[state.lgBg]);
+
+      const design = ["simple and memorable, recognizable at a glance",
+        "scalable design that stays legible at small sizes such as a favicon",
+        "centered composition with generous clear space around the logo",
+        "clean vector-style crisp edges"];
+      const rules = [];
+      if (hasText) rules.push(`spell the text exactly as "${name}"${tagline ? ` and the tagline exactly as "${tagline}"` : ""}, with no extra letters or words`);
+      if (letter) rules.push(`show only the letters "${brandInitials(name)}", no other text`);
+      if (iconOnly) rules.push("no text, letters or words anywhere in the image");
+      if (grid) rules.push(LOGO_VAR[state.lgVar]);
+
+      const neg = ["watermark", "blurry edges", "cluttered composition"];
+      if (!mockup) neg.push("photorealistic rendering", "drop shadow", "3D bevel or emboss", "mockup scene");
+      if (!state.lgGrad) neg.push("gradients");
+      neg.push(iconOnly ? "any text or letters" : "misspelled or extra text");
+      if (val("lgAvoid")) neg.push(val("lgAvoid"));
+
+      return renderImagePrompt({
+        intro: `a professional logo design: ${LOGO_TYPE[state.lgType]}`,
+        groups: [{ title: "BRAND", items: brand }, { title: "CONCEPT", items: concept },
+                 { title: "COLOR AND BACKGROUND", items: color }, { title: "DESIGN RULES", items: design, mj: false },
+                 { title: "TEXT AND LAYOUT RULES", items: rules }],
+        negatives: neg,
+        ratio: ratioOf(state.lgRatio),
+        tail: [grid ? "one image containing the 2x2 grid" : "one image only"]
+      });
+    }
+    function checkLogo() {
+      const w = [];
+      const name = val("lgName");
+      const iconOnly = state.lgType.startsWith("Ikon"), letter = state.lgType.startsWith("Lettermark");
+      if (!iconOnly && name.length > 14) w.push(`Nama brand "${esc(name)}" cukup panjang. Model gambar sering salah huruf di teks panjang, jadi anggap hasilnya sebagai konsep lalu rapikan teksnya di Canva atau Figma, atau pilih jenis Ikon atau simbol saja.`);
+      if (val("lgTagline") && (iconOnly || letter)) w.push(`Tagline diisi, tapi jenis logo ini tidak memuat teks nama, jadi tagline diabaikan.`);
+      if (state.lgStyle.startsWith("Maskot") && state.lgType.startsWith("Wordmark")) w.push("Gaya maskot butuh unsur ilustrasi, sedangkan Wordmark hanya teks. Pilih jenis Kombinasi atau Emblem.");
+      if (state.lgBg.startsWith("Mockup") && LOGO_VAR[state.lgVar]) w.push("Mockup dan eksplorasi 4 konsep sebaiknya tidak digabung, hasilnya jadi ramai dan sulit dibandingkan. Pilih salah satu.");
+      if (val("lgHex") && !hexOf(val("lgHex"))) w.push("Kode warna belum valid, jadi diabaikan. Pakai format 6 digit seperti #1F6F5C.");
+      if (state.lgGrad && /^(Minimalis|Flat|Monoline)/.test(state.lgStyle)) w.push("Gaya ini biasanya paling tajam tanpa gradasi. Tetap dipakai sesuai pilihanmu, tapi hasilnya lebih sulit dirapikan nanti.");
+      return w;
+    }
+
+    // ---------- kategori GAMBAR PRODUK ----------
+    function buildProduk() {
+      const flatLay = state.pdShot.startsWith("Flat");
+      const photo = !!state.pdPhoto;
+      const noPeople = state.pdShot.startsWith("Studio") || state.pdShot.startsWith("Mockup");
+      const withModel = state.pdShot.startsWith("Dengan");
+      const solid = state.pdBg.startsWith("Warna solid");
+      const col = colorEn(state.pdColor);
+
+      const subject = [`product: ${val("pdName")}`, `appearance: ${val("pdDesc")}`];
+      if (PD_CAT[state.pdCat]) subject.push(PD_CAT[state.pdCat]);
+      if (photo) {
+        subject.push("use the attached product photo as the exact reference",
+          "keep the product's shape, proportions, color, material, label text and logo identical to the photo",
+          "change only the scene, lighting and background, never redesign the product or invent details");
+      } else {
+        subject.push("show only the details described above, do not invent extra features");
+      }
+      if (val("pdText")) subject.push(`label text must read exactly "${val("pdText")}"`);
+      else if (!photo) subject.push("avoid fine print or tiny text on the product");
+
+      const scene = [flatLay ? "straight top-down camera angle" : PD_ANGLE[state.pdAngle]];
+      scene.push(solid ? `${col || "neutral"} solid color backdrop` : PD_BG[state.pdBg]);
+      if (val("pdProps")) scene.push(`supporting props: ${val("pdProps")}, kept secondary so they never overshadow the product`);
+      scene.push(PD_LIGHT[state.pdLight]);
+
+      const style = [PD_STYLE[state.pdStyle]];
+      if (col && !solid) style.push(`${col} dominant color mood`);
+      if (PD_THEME[state.pdTheme]) style.push(PD_THEME[state.pdTheme]);
+
+      const quality = ["sharp focus on the product", "high resolution", "realistic materials and reflections",
+        "accurate proportions", "a natural shadow that grounds the product"];
+
+      const neg = ["distorted or melted product shape", "extra or duplicated products", "wrong proportions",
+        "blurry or low resolution", "garbled unreadable text"];
+      if (noPeople) neg.push("people or hands");
+      if (withModel) neg.push("deformed hands or extra fingers");
+      if (state.pdSafe) neg.push("watermark", "promotional text overlays", "price tags", "stickers or badges", "logos of other brands");
+
+      return renderImagePrompt({
+        intro: `a ${PD_SHOT[state.pdShot]}`,
+        groups: [{ title: "SUBJECT", items: subject }, { title: "SCENE", items: scene },
+                 { title: "STYLE", items: style }, { title: "QUALITY", items: quality, mj: false }],
+        negatives: neg,
+        ratio: ratioOf(state.pdRatio),
+        tail: [photo ? "one image, product identical to the attached photo" : "one image only"]
+      });
+    }
+    function checkProduk() {
+      const w = [];
+      if (!state.pdPhoto) w.push("Tanpa foto referensi, AI akan mengarang detail produknya. Hasilnya cocok untuk konsep atau moodboard, tapi jangan dipakai untuk menjual produk nyata karena bisa tidak sama dengan barang aslinya.");
+      if (!state.pdPhoto && val("pdText")) w.push("Teks label kecil sering salah huruf kalau tidak ada foto referensi. Cek hasilnya huruf demi huruf.");
+      if (state.pdPhoto && !state.imgTool.startsWith("ChatGPT")) w.push("Midjourney dan Stable Diffusion tidak memakai fotomu hanya dari teks prompt. Unggah fotonya lewat fitur gambar referensi alatnya (Image Prompt atau img2img), lalu tempel prompt ini.");
+      if (state.pdShot.startsWith("Flat") && !state.pdAngle.startsWith("Tegak")) w.push(`Flat lay selalu dari atas, jadi sudut kamera "${esc(state.pdAngle)}" diabaikan.`);
+      if (state.pdShot.startsWith("Studio") && state.pdBg.startsWith("Lingkungan")) w.push("Jenis foto studio polos tapi latar dipilih lingkungan nyata. Ganti ke Lifestyle, atau pilih latar polos.");
+      if (state.pdTheme.startsWith("Terang") && /Moody|Dramatis/.test(state.pdLight)) w.push("Tema tonal terang, tapi pencahayaannya moody atau dramatis. Arahnya berlawanan.");
+      if (state.pdTheme.startsWith("Gelap") && /Cerah/.test(state.pdLight)) w.push("Tema tonal gelap, tapi pencahayaannya cerah dan ceria. Arahnya berlawanan.");
+      return w;
+    }
+
+    /* ---------- DAFTAR KATEGORI ----------
+       Mau nambah kategori baru (misalnya Banner Iklan)? Cukup:
+       1) bikin data pilihan dan SECTIONS_XXX di Bagian 1,
+       2) bikin fungsi buildXxx() dan checkXxx() seperti di atas,
+       3) tambah satu entri di bawah ini. Tombolnya muncul sendiri. */
+    const CATEGORIES = {
+      web: {
+        label: "LANDING PAGE",
+        sections: () => (state.mode === "next" ? SECTIONS_NEXT : SECTIONS),
+        required: () => state.mode === "next"
+          ? [["pname", "nama produk atau halaman"], ["detail", "detail perubahan"]].concat(state.inChat ? [] : [["prevHtml", "kode HTML sebelumnya"]])
+          : [["aud", "target audiens"], ["pain", "masalah audiens"], ["name", "nama produk"], ["desc", "deskripsi produk"]],
+        check: checkConsistency,
+        build: buildPrompt
+      },
+      logo: {
+        label: "LOGO",
+        sections: () => SECTIONS_LOGO,
+        required: () => [["lgName", "nama brand"], ["lgBiz", "bidang usaha atau produk"]],
+        check: checkLogo,
+        build: buildLogo
+      },
+      produk: {
+        label: "GAMBAR PRODUK",
+        sections: () => SECTIONS_PRODUK,
+        required: () => [["pdName", "nama atau jenis produk"], ["pdDesc", "deskripsi tampilan produk"]],
+        check: checkProduk,
+        build: buildProduk
+      }
+    };
+
+    // ---------- pilih kategori (tombol dibuat dari CATEGORIES) ----------
+    function buildCategorySelector() {
+      const keys = Object.keys(CATEGORIES);
+      $("catSelector").insertAdjacentHTML("beforeend",
+        keys.map((k) => `<button class="type-btn" type="button" data-cat="${k}">${CATEGORIES[k].label}</button>`).join(""));
+      $("catSelector").querySelectorAll("[data-cat]").forEach((b) => b.addEventListener("click", () => setCategory(b.dataset.cat)));
+      $("indicatorCat").style.width = `calc((100% - 8px) / ${keys.length})`;
+    }
+    function setCategory(c, force) {
+      if (!force && c === state.cat) return;
+      if (!CATEGORIES[c]) c = "web";
+      state.cat = c;
+      $("indicatorCat").style.transform = `translateX(${Object.keys(CATEGORIES).indexOf(c) * 100}%)`;
+      document.querySelectorAll("[data-cat]").forEach((b) => b.classList.toggle("active", b.dataset.cat === c));
+      $("modeCard").hidden = c !== "web";          // mode "lanjutkan web" hanya relevan untuk landing page
+      $("msg").textContent = "";
+      $("warn").innerHTML = "";
+      $("out").textContent = "Belum ada hasil. Isi form dulu, lalu tekan Buat prompt.";
+      if (c === "web") setMode(state.mode); else { renderForm(); saveState(); }
+    }
+
     // ---------- tombol utama ----------
     $("go").addEventListener("click", () => {
-      const required = state.mode === "next"
-        ? [["pname", "nama produk atau halaman"], ["detail", "detail perubahan"]].concat(state.inChat ? [] : [["prevHtml", "kode HTML sebelumnya"]])
-        : [["aud", "target audiens"], ["pain", "masalah audiens"], ["name", "nama produk"], ["desc", "deskripsi produk"]];
-      const empty = required.filter(([id]) => !String(state[id] || "").trim()).map(([, label]) => label);
+      const cat = CATEGORIES[state.cat];
+      const empty = cat.required().filter(([id]) => !String(state[id] || "").trim()).map(([, label]) => label);
       if (empty.length) {
         $("msg").textContent = PERSONAS[state.persona].missing(empty.join(", "));
         return;
       }
       $("msg").textContent = "";
-      const warns = checkConsistency();
+      const warns = cat.check();
       $("warn").innerHTML = warns.length
         ? `${PERSONAS[state.persona].warnHead}<ul>${warns.map((w) => `<li>${w}</li>`).join("")}</ul>` : "";
-      $("out").textContent = buildPrompt();
+      $("out").textContent = cat.build();
       showTab("result");
     });
 
@@ -1300,8 +1710,9 @@
     /* ---------- START ---------- */
     makeTriangles();
     setTheme(getBase(), getAccent());
+    buildCategorySelector();
     setPersona(state.persona, false);
-    setMode(state.mode);
+    setCategory(state.cat, true);
   </script>
 </body>
 </html>
