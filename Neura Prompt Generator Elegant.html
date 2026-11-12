@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="id" data-base="light" data-accent="neru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Neura Prompt Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    // Pasang tema SEBELUM CSS digambar, supaya nggak ada kedipan.
+    // Kalau belum pernah pilih tema, ikuti mode terang/gelap perangkat.
+    (function () {
+      var base = null, accent = null;
+      try {
+        base = localStorage.getItem("neura-theme-base");
+        accent = localStorage.getItem("neura-theme-accent");
+      } catch (e) {}
+      if (!base) base = "light";
+      document.documentElement.setAttribute("data-base", base);
+      document.documentElement.setAttribute("data-accent", accent || "neru");
+    })();
+  </script>
+
+  <style>
+
+    /* =========================================================
+       NEURA PROMPT GENERATOR — EDITORIAL UI
+       Lapisan visual saja. Struktur dan logika JavaScript tetap.
+       ========================================================= */
+    :root {
+      --in-color: #2e9b68;
+      --out-color: #c65b55;
+      --accent-primary: #b49a42;
+      --accent-bright: #c7ad58;
+      --accent-secondary: #e8ddb5;
+      --accent-shadow: #8b7634;
+      --accent-particle: #d9cfaa;
+      --accent-text-light: #806b2d;
+      --page-bg: #f8f8f6;
+      --surface: #ffffff;
+      --surface-soft: #f1f1ee;
+      --text: #292a28;
+      --muted: #777873;
+      --muted-soft: #999a94;
+      --border: #e5e5df;
+      --shadow: 0 8px 28px rgba(34, 35, 31, .045);
+      --on-accent: #24231d;
+      --on-accent-shadow: none;
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    [data-base="light"] {
+      --bg-dark: #f8f8f6;
+      --surface-deep: #ffffff;
+      --bg-items: #f1f1ee;
+      --text-light: #292a28;
+      --btn-gray: #f2f2ef;
+      --border-line: #e5e5df;
+      --muted-gray: #777873;
+      --light-gray: #62635e;
+      --shadow-color: rgba(34, 35, 31, .045);
+      --overlay-shine: rgba(255,255,255,.72);
+      --on-accent-color: #24231d;
+      --on-accent-shadow: none;
+      --accent-text: var(--accent-text-light);
+    }
+    [data-base="dark"] {
+      --bg-dark: #171816;
+      --surface-deep: #20211e;
+      --bg-items: #2a2b27;
+      --text-light: #efefe9;
+      --btn-gray: #292a26;
+      --border-line: #3a3b35;
+      --muted-gray: #a0a198;
+      --light-gray: #c6c7be;
+      --shadow-color: rgba(0,0,0,.2);
+      --overlay-shine: rgba(255,255,255,.12);
+      --on-accent-color: #24231d;
+      --on-accent-shadow: none;
+      --accent-text: var(--accent-primary);
+    }
+    [data-accent="neru"] {
+      --accent-primary: #c1a64b;
+      --accent-bright: #d1b95f;
+      --accent-secondary: #e9dfbd;
+      --accent-shadow: #9a8135;
+      --accent-particle: #d8c98e;
+      --accent-text-light: #806b2d;
+    }
+    [data-accent="sekai"] {
+      --accent-primary: #83aebd;
+      --accent-bright: #a6c7d0;
+      --accent-secondary: #dcebef;
+      --accent-shadow: #5f8998;
+      --accent-particle: #c4dce2;
+      --accent-text-light: #527b89;
+    }
+
+    html { scroll-padding-top: 90px; }
+    html, body { margin: 0; min-height: 100%; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "DM Sans", Inter, system-ui, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      line-height: 1.6;
+      transition: background-color .2s ease, color .2s ease;
+    }
+    :focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 3px; }
+    button, input, textarea { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    /* Header */
+    .header-container {
+      position: relative;
+      overflow: hidden;
+      min-height: 174px;
+      padding: 48px 20px 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-dark);
+      border-bottom: 1px solid var(--border-line);
+    }
+    .header-container::before {
+      content: "";
+      position: absolute;
+      width: 190px; height: 190px;
+      right: calc(50% - 360px); top: -115px;
+      border: 1px solid var(--accent-secondary);
+      border-radius: 50%;
+      opacity: .48;
+      pointer-events: none;
+    }
+    .header-container::after {
+      content: "";
+      position: absolute;
+      width: 130px; height: 130px;
+      left: calc(50% - 360px); bottom: -95px;
+      border: 1px solid var(--accent-secondary);
+      border-radius: 50%;
+      opacity: .38;
+      pointer-events: none;
+    }
+    .header-content { position: relative; text-align: center; z-index: 2; }
+    .header-content h1 {
+      margin: 0;
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: clamp(2rem, 5vw, 2.65rem);
+      line-height: 1.15;
+      font-weight: 600;
+      letter-spacing: -.8px;
+      color: var(--text-light);
+      text-shadow: none;
+    }
+    #greet {
+      display: inline-block;
+      margin-top: 13px;
+      padding: 5px 13px;
+      border: 1px solid var(--border-line);
+      border-radius: 999px;
+      color: var(--muted-gray);
+      background: var(--surface-deep);
+      font-size: .82rem;
+      font-weight: 500;
+      text-shadow: none;
+    }
+    .triangle { display: none; }
+
+    /* Navigation */
+    body::before {
+      content: "";
+      position: fixed; top: 0; left: 0; right: 0; z-index: 99;
+      height: env(safe-area-inset-top, 0px);
+      background: var(--surface-deep);
+    }
+    .category-nav {
+      display: flex;
+      position: sticky;
+      top: env(safe-area-inset-top, 0px);
+      z-index: 100;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: color-mix(in srgb, var(--surface-deep) 94%, transparent);
+      border-bottom: 1px solid var(--border-line);
+      backdrop-filter: blur(12px);
+    }
+    .nav-item {
+      min-width: 138px;
+      padding: 10px 17px;
+      text-align: center;
+      cursor: pointer;
+      font: 600 .84rem "DM Sans", sans-serif;
+      letter-spacing: .1px;
+      color: var(--muted-gray);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      transition: color .18s ease, background .18s ease, border-color .18s ease;
+    }
+    .nav-item.active {
+      color: var(--text-light);
+      background: var(--bg-items);
+      border-color: var(--border-line);
+    }
+
+    /* Main layout and cards */
+    .page { width: min(100%, 1480px); margin: 0 auto; padding: 28px 22px 64px; }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+      align-items: start;
+      gap: 22px;
+    }
+    #tab-form, #tab-result { min-width: 0; }
+    .card {
+      margin: 15px 18px;
+      padding: 25px 27px;
+      border: 1px solid var(--border-line);
+      border-radius: 16px;
+      background: var(--surface-deep);
+      box-shadow: var(--shadow);
+    }
+    .card.accent { border-top: 1px solid var(--border-line); }
+    .card h2 {
+      margin: 0 0 19px;
+      color: var(--text-light);
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: 1.28rem;
+      font-weight: 600;
+      letter-spacing: -.2px;
+      line-height: 1.3;
+    }
+    #formArea > .card:first-child { margin-top: 15px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 17px; }
+    .full { grid-column: 1 / -1; }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+    /* Inputs */
+    .input-group { min-width: 0; margin-bottom: 19px; }
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--muted-gray);
+      font-size: .76rem;
+      font-weight: 700;
+      letter-spacing: .55px;
+      text-transform: uppercase;
+    }
+    label .req { color: var(--out-color); }
+    input[type=text], textarea, select {
+      width: 100%;
+      min-height: 46px;
+      padding: 11px 13px;
+      border: 1px solid var(--border-line);
+      border-radius: 9px;
+      background: var(--surface-deep);
+      color: var(--text-light);
+      font: 500 .94rem "DM Sans", sans-serif;
+      box-shadow: none;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+    input[type=text]::placeholder, textarea::placeholder { color: var(--muted-soft); opacity: 1; }
+    textarea { min-height: 96px; resize: vertical; line-height: 1.55; }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 14%, transparent);
+    }
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 17px;
+      color: var(--text-light);
+      font-size: .92rem;
+      font-weight: 500;
+    }
+    .check-row input { width: 17px; height: 17px; accent-color: var(--accent-shadow); }
+    .check-row label { margin: 0; color: inherit; font-size: .9rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
+
+    /* Chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 13px; }
+    .chip {
+      padding: 8px 13px;
+      border: 1px solid var(--border-line);
+      border-radius: 999px;
+      background: var(--surface-deep);
+      color: var(--muted-gray);
+      cursor: pointer;
+      font: 500 .84rem "DM Sans", sans-serif;
+      transition: background .18s ease, border-color .18s ease, color .18s ease;
+    }
+    .chip[aria-pressed="true"] {
+      background: color-mix(in srgb, var(--accent-primary) 15%, var(--surface-deep));
+      border-color: var(--accent-primary);
+      color: var(--text-light);
+    }
+
+    /* Custom dropdown */
+    .dd { position: relative; }
+    .dd-btn {
+      position: relative;
+      width: 100%;
+      min-height: 46px;
+      padding: 11px 40px 11px 13px;
+      text-align: left;
+      cursor: pointer;
+      border: 1px solid var(--border-line);
+      border-radius: 9px;
+      background: var(--surface-deep);
+      color: var(--text-light);
+      font: 500 .94rem "DM Sans", sans-serif;
+    }
+    .dd-btn::after {
+      content: "";
+      position: absolute; right: 16px; top: 47%;
+      width: 7px; height: 7px;
+      border-right: 1.5px solid var(--muted-gray);
+      border-bottom: 1.5px solid var(--muted-gray);
+      transform: translateY(-70%) rotate(45deg);
+      transition: transform .18s ease;
+    }
+    .dd.open .dd-btn { border-color: var(--accent-primary); }
+    .dd.open .dd-btn::after { transform: translateY(-25%) rotate(225deg); }
+    .dd-panel {
+      display: none;
+      position: absolute; left: 0; right: 0; z-index: 50;
+      margin-top: 5px;
+      max-height: 230px;
+      overflow-y: auto;
+      border: 1px solid var(--border-line);
+      border-radius: 10px;
+      background: var(--surface-deep);
+      box-shadow: 0 12px 28px var(--shadow-color);
+    }
+    .dd.open .dd-panel { display: block; }
+    .dd-item {
+      padding: 11px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-line);
+      color: var(--light-gray);
+      font-size: .9rem;
+      font-weight: 500;
+    }
+    .dd-item:last-child { border-bottom: 0; }
+    .dd-item:hover, .dd-item:focus { background: var(--bg-items); color: var(--text-light); outline: none; }
+    .dd-item.selected { color: var(--accent-text); font-weight: 700; }
+
+    /* Persona and mode selector */
+    .type-selector {
+      position: relative;
+      display: flex;
+      padding: 4px;
+      overflow: hidden;
+      border: 1px solid var(--border-line);
+      border-radius: 999px;
+      background: var(--bg-items);
+    }
+    .type-btn {
+      flex: 1;
+      min-width: 0;
+      padding: 12px 10px;
+      z-index: 2;
+      cursor: pointer;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      font: 700 .82rem "DM Sans", sans-serif;
+      letter-spacing: .25px;
+      color: var(--muted-gray);
+      transition: color .2s ease;
+    }
+    .type-btn.active { color: var(--on-accent-color); text-shadow: none; }
+    .selection-indicator {
+      position: absolute; top: 4px; left: 4px; z-index: 1;
+      width: calc(50% - 4px); height: calc(100% - 8px);
+      border-radius: 999px;
+      background: var(--accent-primary);
+      transition: transform .25s ease;
+    }
+    .selection-indicator.right { transform: translateX(100%); }
+
+    /* Buttons */
+    .submit-btn {
+      width: 100%;
+      min-height: 51px;
+      padding: 14px 20px;
+      margin-top: 6px;
+      cursor: pointer;
+      border: 1px solid var(--accent-primary);
+      border-radius: 999px;
+      background: var(--accent-primary);
+      color: #24231d;
+      font: 700 .91rem "DM Sans", sans-serif;
+      letter-spacing: .25px;
+      text-transform: none;
+      text-shadow: none;
+      box-shadow: none;
+      transition: transform .18s ease, filter .18s ease;
+    }
+    .submit-btn:hover { filter: brightness(.97); transform: translateY(-1px); }
+    .submit-btn:active { transform: translateY(0); }
+    .ghost-btn {
+      width: 100%;
+      padding: 11px 15px;
+      margin-top: 11px;
+      cursor: pointer;
+      border: 1px solid var(--border-line);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted-gray);
+      font: 600 .86rem "DM Sans", sans-serif;
+      transition: background .18s ease, color .18s ease;
+    }
+    .ghost-btn:hover { background: var(--bg-items); color: var(--text-light); }
+    #msg { min-height: 1.4em; margin: 12px 0 0; color: var(--out-color); font-size: .88rem; font-weight: 600; text-align: center; }
+
+    textarea.code {
+      min-height: 190px;
+      font: 12px/1.55 ui-monospace, Consolas, monospace;
+    }
+    .file-btn {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 9px;
+      padding: 8px 13px;
+      border: 1px solid var(--border-line);
+      border-radius: 999px;
+      background: var(--bg-items);
+      color: var(--text-light);
+      cursor: pointer;
+      font: 600 .82rem "DM Sans", sans-serif;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    /* Generated prompt */
+    #warn {
+      margin: 0 0 16px;
+      padding: 13px 15px;
+      border: 1px solid var(--border-line);
+      border-left: 3px solid var(--accent-primary);
+      border-radius: 9px;
+      background: var(--bg-items);
+      font-size: .86rem;
+      font-weight: 600;
+    }
+    #warn:empty { display: none; }
+    #warn ul { margin: 8px 0 0; padding-left: 18px; color: var(--light-gray); font-weight: 400; }
+    pre {
+      margin: 0 0 16px;
+      padding: 17px;
+      max-height: 60vh;
+      overflow: auto;
+      border: 1px solid var(--border-line);
+      border-radius: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: var(--bg-items);
+      color: var(--text-light);
+      font: 12.5px/1.65 ui-monospace, Consolas, monospace;
+    }
+
+    /* Theme menu */
+    .theme-menu-btn {
+      position: fixed;
+      top: calc(16px + env(safe-area-inset-top, 0px));
+      left: 16px;
+      z-index: 300;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background: var(--surface-deep);
+      border: 1px solid var(--border-line);
+      box-shadow: 0 3px 12px var(--shadow-color);
+    }
+    .theme-menu-btn span { width: 16px; height: 1.5px; border-radius: 2px; background: var(--text-light); }
+    .theme-menu-popup {
+      position: fixed;
+      top: calc(64px + env(safe-area-inset-top, 0px));
+      left: 16px;
+      z-index: 300;
+      min-width: 205px;
+      padding: 15px;
+      border-radius: 13px;
+      background: var(--surface-deep);
+      border: 1px solid var(--border-line);
+      box-shadow: 0 12px 30px var(--shadow-color);
+      opacity: 0;
+      transform: translateY(-7px) scale(.98);
+      pointer-events: none;
+      transition: .18s ease;
+    }
+    .theme-menu-popup.open { opacity: 1; transform: none; pointer-events: auto; }
+    .theme-menu-label {
+      display: block;
+      margin: 13px 0 8px;
+      color: var(--muted-gray);
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+    }
+    .theme-menu-label:first-child { margin-top: 0; }
+    .theme-menu-options { display: flex; gap: 7px; }
+    .theme-opt-btn {
+      flex: 1;
+      padding: 8px 6px;
+      border: 1px solid var(--border-line);
+      border-radius: 8px;
+      background: var(--bg-items);
+      color: var(--text-light);
+      cursor: pointer;
+      font: 600 .82rem "DM Sans", sans-serif;
+    }
+    .theme-opt-btn.active {
+      background: color-mix(in srgb, var(--accent-primary) 22%, var(--surface-deep));
+      border-color: var(--accent-primary);
+      color: var(--text-light);
+    }
+    .click-particle { position: absolute; z-index: 9999; pointer-events: none; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); opacity: .45; }
+
+    [hidden] { display: none !important; }
+
+    /* Desktop: both work areas stay visible. Smaller screens use the tab bar. */
+    @media (min-width: 901px) {
+      .category-nav { display: none; }
+      .page { padding-top: 30px; }
+      #tab-form > .card:first-child { margin-top: 0; }
+
+      /* Panel hasil fixed dengan kolom yang tetap dicadangkan oleh grid.
+         Saat halaman masih di header, panel mulai tepat di bawah header.
+         Setelah header terlewati, panel naik ke posisi kerja normal. */
+      #tab-result {
+        position: fixed;
+        z-index: 20;
+        top: 204px;
+        right: max(22px, calc((100vw - 1480px) / 2 + 22px));
+        bottom: 24px;
+        width: calc((min(100vw, 1480px) - 66px) * .54);
+        align-self: stretch;
+        min-height: 0;
+        transition: top .18s ease;
+      }
+      body.has-scrolled #tab-result { top: 24px; }
+      #tab-result > .card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        max-height: none;
+        margin: 0;
+        overflow: hidden;
+      }
+      #tab-result > .card h2,
+      #tab-result #warn,
+      #tab-result #copy { flex: 0 0 auto; }
+      #tab-result pre {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+        overflow: auto;
+        overscroll-behavior: contain;
+      }
+    }
+    @media (max-width: 900px) {
+      .page { width: min(100%, 800px); padding: 12px 0 56px; }
+      .workspace { display: block; }
+      #tab-result { position: static; }
+      #tab-result .card { max-height: none; overflow: visible; }
+      #tab-result pre { max-height: 65vh; }
+    }
+
+    @media (max-width: 600px) {
+      .header-container { min-height: 150px; padding: 42px 18px 30px; }
+      .header-content h1 { font-size: 1.85rem; }
+      .category-nav { padding: 9px 12px; gap: 5px; }
+      .nav-item { min-width: 0; flex: 1; padding: 9px 10px; font-size: .78rem; }
+      .page { padding-top: 12px; }
+      .card { margin: 12px 12px; padding: 21px 18px; border-radius: 13px; }
+      .card h2 { font-size: 1.18rem; margin-bottom: 16px; }
+      .type-btn { padding: 11px 7px; font-size: .76rem; }
+      .theme-menu-btn { top: calc(10px + env(safe-area-inset-top, 0px)); left: 10px; width: 36px; height: 36px; }
+      .theme-menu-popup { top: calc(54px + env(safe-area-inset-top, 0px)); left: 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- MENU TEMA -->
+  <div class="theme-menu-btn" id="themeBtn" role="button" aria-label="Menu tema" tabindex="0"><span></span><span></span><span></span></div>
+  <div class="theme-menu-popup" id="themePopup">
+    <span class="theme-menu-label">Base Theme</span>
+    <div class="theme-menu-options">
+      <button class="theme-opt-btn" data-base-opt="dark">Dark</button>
+      <button class="theme-opt-btn" data-base-opt="light">Light</button>
+    </div>
+    <span class="theme-menu-label">Custom Theme</span>
+    <div class="theme-menu-options">
+      <button class="theme-opt-btn" data-accent-opt="neru">Neru</button>
+      <button class="theme-opt-btn" data-accent-opt="sekai">Sekai</button>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <div class="header-container" id="header">
+    <div class="header-content">
+      <h1>PROMPT GENERATOR</h1>
+      <div id="greet"></div>
+    </div>
+  </div>
+
+  <!-- TAB -->
+  <div class="category-nav">
+    <button class="nav-item active" data-tab="form">Isi Form</button>
+    <button class="nav-item" data-tab="result">Hasil Prompt</button>
+  </div>
+
+  <div class="page">
+    <div class="workspace">
+    <!-- PANEL 1: FORM (diisi otomatis oleh JavaScript dari SECTIONS) -->
+    <div id="tab-form">
+      <div class="card accent">
+        <h2>Lagi ngobrol sama siapa?</h2>
+        <div class="type-selector">
+          <div class="selection-indicator" id="indicator"></div>
+          <button class="type-btn" data-persona="neru">NERU</button>
+          <button class="type-btn" data-persona="miku">MIKU</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Mau ngapain?</h2>
+        <div class="type-selector">
+          <div class="selection-indicator" id="indicatorMode"></div>
+          <button class="type-btn" data-mode="new">BUAT DARI AWAL</button>
+          <button class="type-btn" data-mode="next">LANJUTKAN WEB</button>
+        </div>
+      </div>
+      <div id="formArea"></div>
+      <div class="card">
+        <button class="submit-btn" id="go" type="button">Buat prompt</button>
+        <p id="msg" role="alert"></p>
+        <button class="ghost-btn" id="reset" type="button">Kosongkan semua isian</button>
+      </div>
+    </div>
+
+    <!-- PANEL 2: HASIL -->
+    <div id="tab-result" hidden>
+      <div class="card accent">
+        <h2>Hasil prompt</h2>
+        <div id="warn"></div>
+        <pre id="out">Belum ada hasil. Isi form dulu, lalu tekan Buat prompt.</pre>
+        <button class="submit-btn" id="copy" type="button">Salin prompt</button>
+      </div>
+    </div>
+    </div><!-- /.workspace -->
+  </div>
+
+  <script>
+    /* ===================================================================
+       BAGIAN 1: DATA (bagian ini yang paling sering kamu ubah)
+       Semua pilihan, teks karakter, dan framework ada di sini,
+       terpisah dari logika program di bagian 2.
+       =================================================================== */
+
+    // Karakter lawan bicara. "accent" = tema yang otomatis dipakai saat dipilih.
+    const PERSONAS = {
+      neru: {
+        accent: "neru",
+        greet: "Hmph, mau bikin prompt apa lagi? Isi yang bener ya.",
+        missing: (list) => "Masih kosong tuh: " + list + ". Lengkapi dulu, bukan salahku ya!",
+        copied: "Udah kusalin. Jangan salah tempel, ya!",
+        warnHead: "Hmph, ada yang janggal di isianmu, cek lagi ya:",
+        // Instruksi gaya obrolan untuk AI yang nanti menerima prompt
+        style: "Akita Neru: sinis, sedikit galak, malu-malu kucing, sesekali jahil dan menggoda, tapi tetap membantu sampai tuntas."
+      },
+      miku: {
+        accent: "sekai",
+        greet: "Halo halo! Yuk bikin prompt landing page bareng Miku~",
+        missing: (list) => "Eh, masih ada yang kosong nih: " + list + ". Isi dulu ya~",
+        copied: "Tersalin! Semangat jualannya ya~",
+        warnHead: "Eh, ada beberapa hal yang bisa dicek dulu nih~",
+        style: "Hatsune Miku: ceria, hangat, penuh semangat, suka memberi dukungan, dan ramah."
+      }
+    };
+
+    // Framework copywriting beserta urutan tahapnya
+    const FRAMEWORKS = {
+      AIDCA: "Attention, Interest, Desire, Conviction, Action",
+      AIDA: "Attention, Interest, Desire, Action",
+      PAS: "Problem, Agitate, Solution",
+      BAB: "Before, After, Bridge",
+      PASTOR: "Problem, Amplify, Story, Transformation, Offer, Response",
+      "4P": "Picture, Promise, Prove, Push"
+    };
+
+    // Tugas tiap tahap framework (dipakai untuk menyusun STRUKTUR HALAMAN di prompt)
+    const FW_MAP = {
+      AIDCA: ["Attention: hero berisi hook yang menyentuh masalah utama audiens", "Interest: gambarkan situasi audiens dan mengapa solusi biasa kurang pas", "Desire: gambarkan hasil dan manfaat nyata dari produk", "Conviction: reassurance dan jawaban atas keraguan", "Action: penawaran, bonus, kelangkaan, dan CTA"],
+      AIDA: ["Attention: hero berisi hook yang menyentuh masalah utama", "Interest: buat audiens tertarik dengan cerita atau fakta yang relevan", "Desire: gambarkan manfaat dan hasil yang diinginkan", "Action: penawaran dan CTA yang jelas"],
+      PAS: ["Problem: gambarkan masalah sesuai bahasa audiens", "Agitate: perdalam dampaknya tanpa melebih-lebihkan", "Solution: perkenalkan produk sebagai jalan keluar, lalu arahkan ke CTA"],
+      BAB: ["Before: kondisi audiens saat ini", "After: kondisi yang mereka inginkan", "Bridge: produk sebagai jembatan, lalu CTA"],
+      PASTOR: ["Problem: masalah utama", "Amplify: dampak jika dibiarkan, tanpa dilebih-lebihkan", "Story: cerita singkat yang hanya memakai data dari saya", "Transformation: perubahan yang bisa dirasakan", "Offer: penawaran dan bonus", "Response: ajakan bertindak dan CTA"],
+      "4P": ["Picture: bayangkan situasi ideal audiens", "Promise: janji manfaat yang realistis", "Prove: bukti dan reassurance dari data yang ada", "Push: dorongan bertindak dan CTA"]
+    };
+
+    // Cara menulis copy untuk tiap level kesadaran audiens
+    const AWARENESS = {
+      Unaware: "buka dengan situasi yang dikenali audiens, jangan sebut produk di bagian awal",
+      Problem: "buka dengan masalah yang mereka rasakan, lalu tunjukkan bahwa ada jalan keluar",
+      Solution: "bandingkan pendekatan ini dengan solusi lain yang sudah mereka tahu, tonjolkan pembedanya",
+      Product: "langsung bahas produk, fokus pada detail, bukti, dan jawaban keraguan",
+      Most: "langsung ke penawaran, harga, bonus, dan alasan bertindak sekarang, singkat dan lugas"
+    };
+
+    // Struktur form. Tipe kolom: select, text, area (textarea), check, chips.
+    //   req: wajib diisi  |  full: selebar kartu  |  showIf: tampil kalau checkbox itu dicentang
+    const SECTIONS = [
+      { title: "Framework dan gaya bahasa", fields: [
+        { id: "fw", label: "Framework copywriting", type: "select",
+          options: ["AIDCA", "AIDA", "PAS (Problem, Agitate, Solution)", "BAB (Before, After, Bridge)", "PASTOR", "4P (Picture, Promise, Prove, Push)"] },
+        { id: "tone", label: "Gaya bahasa copy", type: "select",
+          options: ["Santai dan akrab", "Profesional dan tegas", "Hangat dan empatik", "Berani dan provokatif", "Elegan dan premium"] }
+      ]},
+      { title: "Produk dan tujuan", fields: [
+        { id: "type", label: "Tipe produk", type: "select",
+          options: ["Ebook atau template", "Kursus online", "Jasa atau layanan", "Produk fisik", "Software atau aplikasi", "Event atau webinar"] },
+        { id: "goal", label: "Tujuan utama", type: "select",
+          options: ["Penjualan langsung", "Lead generation (WA atau email)", "Pendaftaran event", "Booking konsultasi"] }
+      ]},
+      { title: "Target market", fields: [
+        { id: "aware", label: "Level kesadaran audiens", type: "select",
+          options: ["Unaware (belum sadar masalah)", "Problem aware (sadar masalah)", "Solution aware (tahu solusi)", "Product aware (tahu produk)", "Most aware (siap beli)"] },
+        { id: "aud", label: "Target audiens", type: "text", req: true, hint: "Contoh: ibu rumah tangga yang ingin jualan online" },
+        { id: "pain", label: "3 masalah atau ketakutan audiens", type: "area", req: true, full: true, hint: "Contoh: takut boncos iklan, gaptek, tidak punya waktu" }
+      ]},
+      { title: "Detail produk dan copy", fields: [
+        { id: "name", label: "Nama produk", type: "text", req: true, full: true, hint: "Contoh: Masterclass Copywriting" },
+        { id: "price", label: "Harga normal", type: "rupiah", hint: "Rp 999.000" },
+        { id: "promo", label: "Harga promo", type: "rupiah", hint: "Rp 499.000" },
+        { id: "desc", label: "Deskripsi dan benefit utama", type: "area", req: true, full: true, hint: "Jelaskan keunggulan produk secara singkat" },
+        { id: "obj", label: "Keberatan utama calon pembeli", type: "area", full: true, hint: "Contoh: mahal, takut tidak ngefek, ribet" },
+        { id: "bonus", label: "Ada bonus tambahan", type: "check", full: true },
+        { id: "bonusTxt", label: "Rincian bonus", type: "area", full: true, showIf: "bonus", hint: "Sebutkan bonus dan nilainya" },
+        { id: "cta", label: "Call to action", type: "select",
+          options: ["Beli sekarang", "Daftar sekarang", "Chat WhatsApp", "Download gratis", "Booking sekarang"] },
+        { id: "scar", label: "Tipe kelangkaan", type: "select",
+          options: ["Tidak ada", "Batas waktu promo (countdown)", "Kuota terbatas (sisa slot)", "Harga naik setelah periode tertentu"] },
+        { id: "scarVal", label: "Detail kelangkaan (data nyata)", type: "text", full: true, hint: "Contoh: 12 slot, atau 30 November 2026 23:59. Kosongkan bila belum ada." },
+        { id: "ctaAct", label: "Tujuan link tombol CTA", type: "select", full: true,
+          options: ["Scroll ke bagian paling bawah (form atau checkout)", "Buka WhatsApp", "Buka link checkout eksternal"] }
+      ]},
+      { title: "Elemen tambahan", fields: [
+        { id: "el", type: "chips", multi: true,
+          options: ["Social proof", "Testimoni", "FAQ", "Bonus", "Garansi", "Kelangkaan", "Perbandingan", "Tabel harga", "Timeline", "Tim", "Notifikasi penjualan"] }
+      ]},
+      { title: "Identitas visual dan desain", fields: [
+        { id: "color", label: "Warna brand utama", type: "select",
+          options: ["Netral atau monokrom", "Biru", "Hijau", "Merah", "Oranye", "Ungu", "Kuning"] },
+        { id: "theme", label: "Tema latar", type: "select", options: ["Ikuti gaya desain", "Terang", "Gelap"] },
+        { id: "style", label: "Gaya desain dan referensi", type: "select",
+          options: ["Minimalis ala Apple", "Modern SaaS", "Bold dan ramai ala toko online", "Editorial majalah", "Visual storytelling", "Playful dan ramah"] },
+        { id: "hero", label: "Tipe hero section", type: "select",
+          options: ["Standar (gambar di samping)", "Teks di tengah", "Video atau demo", "Penuh gambar"] },
+        { id: "sticky", label: "Sticky button CTA di mobile (disarankan untuk traffic ads)", type: "check", full: true }
+      ]},
+      { title: "Aturan teknis dan kepatuhan", fields: [
+        { id: "layout", label: "Tata letak", type: "select", options: ["Satu kolom (disarankan)", "Bebas, boleh multi-kolom"] },
+        { id: "css", label: "Gaya CSS", type: "select", options: ["CSS biasa (aman untuk embed)", "Tailwind CSS (via CDN)"] },
+        { id: "safe", label: "Mode aman iklan: hindari klaim berlebihan dan kata terlarang untuk Meta dan Google Ads", type: "check", full: true }
+      ]},
+      { title: "Platform target", fields: [
+        { id: "plat", type: "chips", multi: false,
+          options: ["Satu file HTML", "Berdu", "Lynk", "WordPress", "Shopify", "Buat.id", "Orderhero", "Mayar"] }
+      ]}
+    ];
+
+    // Mode "Lanjutkan web": form untuk menambah atau mengubah halaman yang sudah jadi (misalnya tambah varian fashion)
+    const SECTIONS_NEXT = [
+      { title: "Halaman yang sudah ada", fields: [
+        { id: "pname", label: "Nama produk atau halaman", type: "text", req: true, full: true, hint: "Contoh: Koleksi Kemeja Linen" },
+        { id: "ptype", label: "Bentuk halaman saat ini", type: "select", full: true, options: ["Satu file HTML utuh", "Fragmen untuk platform embed"] },
+        { id: "inChat", label: "Kode HTML-nya sudah ada di obrolan AI yang sama, tidak perlu disertakan lagi", type: "check", full: true },
+        { id: "prevHtml", label: "Kode HTML sebelumnya", type: "code", req: true, full: true, showIfNot: "inChat", hint: "Tempel kode di sini, atau pakai tombol unggah file" }
+      ]},
+      { title: "Apa yang mau dilakukan", fields: [
+        { id: "change", label: "Jenis perubahan", type: "select", options: ["Tambah varian produk", "Tambah style atau warna baru", "Tambah section baru", "Ubah copy atau teks", "Ubah harga dan penawaran", "Perbaikan tampilan atau bug", "Ganti gaya visual"] },
+        { id: "where", label: "Posisi perubahan", type: "select", options: ["Di dalam section yang sudah ada", "Section baru sebelum penutup", "Menggantikan section tertentu", "Biar AI yang menentukan"] },
+        { id: "target", label: "Nama section target (opsional)", type: "text", hint: "Contoh: section Pilihan Varian" },
+        { id: "price2", label: "Harga varian baru (opsional)", type: "rupiah", hint: "Rp 299.000" },
+        { id: "detail", label: "Detail perubahan", type: "area", req: true, full: true, hint: "Contoh: tambah 3 varian, yaitu Linen Sage, Linen Sand, Linen Navy. Satu baris satu varian." }
+      ]},
+      { title: "Yang harus tetap sama", fields: [
+        { id: "keep", type: "chips", multi: true,
+          options: ["Gaya visual", "Copy bagian lain", "Struktur section", "Warna brand", "Tujuan tombol CTA", "Harga dan penawaran"] }
+      ]},
+      { title: "Format dan kepatuhan", fields: [
+        { id: "outFmt", label: "Format hasil", type: "select", full: true, options: ["Kode HTML utuh versi terbaru", "Hanya blok yang berubah, dengan keterangan lokasi"] },
+        { id: "safe", label: "Mode aman iklan: hindari klaim berlebihan dan kata terlarang untuk Meta dan Google Ads", type: "check", full: true }
+      ]}
+    ];
+
+    /* ===================================================================
+       BAGIAN 2: LOGIKA PROGRAM
+       =================================================================== */
+    const STORE_KEY = "neura-prompt-v2";
+    const $ = (id) => document.getElementById(id);
+
+    // format rupiah: simpan angkanya saja, tampilkan "Rp 1.234.567" (sama seperti kolom nominal di Neura)
+    const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const digits = (v) => String(v || "").replace(/\D/g, "").slice(0, 12);
+    const fmtRp = (v) => (digits(v) ? "Rp " + Number(digits(v)).toLocaleString("id-ID") : "");
+    const state = loadState();
+
+    // ---------- simpan dan muat isian ----------
+    function loadState() {
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch (e) {}
+      return Object.assign({ persona: "neru", el: [], plat: "Satu file HTML", safe: true, mode: "new",
+        keep: ["Gaya visual", "Copy bagian lain", "Struktur section", "Warna brand", "Tujuan tombol CTA"] }, saved);
+    }
+    function saveState() {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    // ---------- bikin form dari SECTIONS ----------
+    function renderField(f) {
+      const value = state[f.id];
+      const cls = "input-group" + (f.full ? " full" : "");
+      const hide = (f.showIf && !state[f.showIf]) || (f.showIfNot && state[f.showIfNot]) ? " hidden" : "";
+      const wrap = (inner) => `<div class="${cls}" data-show-if="${f.showIf || ""}" data-hide-if="${f.showIfNot || ""}"${hide}>${inner}</div>`;
+      const label = f.label ? `<label for="${f.id}">${f.label}${f.req ? ' <span class="req">*</span>' : ""}</label>` : "";
+
+      if (f.type === "check") {
+        return `<div class="check-row full"><input type="checkbox" id="${f.id}" ${value ? "checked" : ""}>
+                <label for="${f.id}" style="margin:0;text-transform:none;letter-spacing:0;color:inherit">${f.label}</label></div>`;
+      }
+      if (f.type === "code") {
+        return wrap(label + `<textarea id="${f.id}" class="code" spellcheck="false" placeholder="${f.hint || ""}">${esc(value)}</textarea>`
+          + `<label class="file-btn">Unggah file HTML<input type="file" id="${f.id}File" accept=".html,.htm,.txt" hidden></label>`);
+      }
+      if (f.type === "rupiah") {
+        return wrap(label + `<input type="text" inputmode="numeric" autocomplete="off" id="${f.id}" placeholder="${f.hint || ""}" value="${fmtRp(value)}">`);
+      }
+      if (f.type === "select") {
+        const cur = value || f.options[0];
+        const items = f.options.map((o) =>
+          `<div class="dd-item${o === cur ? " selected" : ""}" role="option" tabindex="-1" data-value="${o}">${o}</div>`).join("");
+        return wrap(label + `<div class="dd" data-dd="${f.id}"><button type="button" class="dd-btn" id="${f.id}" aria-haspopup="listbox" aria-expanded="false">${cur}</button><div class="dd-panel" role="listbox">${items}</div></div>`);
+      }
+      if (f.type === "area") {
+        return wrap(label + `<textarea id="${f.id}" placeholder="${f.hint || ""}">${value || ""}</textarea>`);
+      }
+      if (f.type === "chips") {
+        return `<div class="chips full" data-chips="${f.id}">` + f.options.map((o) => {
+          const on = f.multi ? state[f.id].includes(o) : state[f.id] === o;
+          return `<button type="button" class="chip" aria-pressed="${on}">${o}</button>`;
+        }).join("") + "</div>";
+      }
+      return wrap(label + `<input type="text" id="${f.id}" placeholder="${f.hint || ""}" value="${(value || "").replace(/"/g, "&quot;")}">`);
+    }
+
+    const currentSections = () => (state.mode === "next" ? SECTIONS_NEXT : SECTIONS);
+
+    function renderForm() {
+      $("formArea").innerHTML = currentSections().map((s) =>
+        `<div class="card"><h2>${s.title}</h2><div class="grid">${s.fields.map(renderField).join("")}</div></div>`
+      ).join("");
+
+      // pasang pendengar input untuk tiap kolom
+      currentSections().forEach((s) => s.fields.forEach((f) => {
+        if (f.type === "chips") return;
+        if (state[f.id] === undefined) state[f.id] = f.type === "check" ? false : (f.type === "select" ? f.options[0] : "");
+        if (f.type === "select") return; // daftar kustom ditangani di bagian dropdown di bawah
+        const el = $(f.id);
+        if (f.type === "code") {
+          $(f.id + "File").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const r = new FileReader();
+            r.onload = () => { el.value = r.result; state[f.id] = r.result; saveState(); };
+            r.readAsText(file);
+          });
+        }
+        if (f.type === "rupiah") {
+          el.addEventListener("input", () => {
+            state[f.id] = digits(el.value);
+            el.value = fmtRp(state[f.id]);
+            saveState();
+          });
+          return;
+        }
+        el.addEventListener("input", () => {
+          state[f.id] = f.type === "check" ? el.checked : el.value;
+          saveState();
+          document.querySelectorAll(`[data-show-if="${f.id}"]`).forEach((n) => (n.hidden = !state[f.id]));
+          document.querySelectorAll(`[data-hide-if="${f.id}"]`).forEach((n) => (n.hidden = !!state[f.id]));
+        });
+      }));
+    }
+
+    // klik chip (elemen tambahan dan platform)
+    $("formArea").addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      const key = chip.parentElement.dataset.chips;
+      const multi = Array.isArray(state[key]);
+      const text = chip.textContent;
+      if (multi) {
+        const i = state[key].indexOf(text);
+        i > -1 ? state[key].splice(i, 1) : state[key].push(text);
+      } else {
+        state[key] = text;
+      }
+      chip.parentElement.querySelectorAll(".chip").forEach((c) => {
+        const on = multi ? state[key].includes(c.textContent) : state[key] === c.textContent;
+        c.setAttribute("aria-pressed", on);
+      });
+      saveState();
+    });
+
+    // ---------- daftar pilihan kustom (pengganti select bawaan) ----------
+    function closeAllDropdowns(except) {
+      document.querySelectorAll(".dd.open").forEach((d) => {
+        if (d === except) return;
+        d.classList.remove("open");
+        d.querySelector(".dd-btn").setAttribute("aria-expanded", "false");
+      });
+    }
+    function pickOption(dd, item) {
+      state[dd.dataset.dd] = item.dataset.value;
+      dd.querySelector(".dd-btn").textContent = item.dataset.value;
+      dd.querySelectorAll(".dd-item").forEach((i) => i.classList.toggle("selected", i === item));
+      closeAllDropdowns();
+      dd.querySelector(".dd-btn").focus();
+      saveState();
+    }
+    $("formArea").addEventListener("click", (e) => {
+      const dd = e.target.closest(".dd");
+      if (!dd) return;
+      const item = e.target.closest(".dd-item");
+      if (item) return pickOption(dd, item);
+      if (e.target.closest(".dd-btn")) {
+        const open = !dd.classList.contains("open");
+        closeAllDropdowns(dd);
+        dd.classList.toggle("open", open);
+        dd.querySelector(".dd-btn").setAttribute("aria-expanded", open);
+        const sel = dd.querySelector(".selected");
+        if (open && sel) sel.scrollIntoView({ block: "nearest" });
+      }
+    });
+    // keyboard: panah atas/bawah, Enter atau spasi untuk memilih, Esc untuk menutup
+    $("formArea").addEventListener("keydown", (e) => {
+      const dd = e.target.closest(".dd");
+      if (!dd) return;
+      const items = [...dd.querySelectorAll(".dd-item")];
+      const i = items.indexOf(document.activeElement);
+      if (e.key === "Escape") {
+        closeAllDropdowns();
+        dd.querySelector(".dd-btn").focus();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!dd.classList.contains("open")) dd.querySelector(".dd-btn").click();
+        const start = Math.max(items.findIndex((x) => x.classList.contains("selected")), 0);
+        const next = i === -1 ? start : Math.min(Math.max(i + (e.key === "ArrowDown" ? 1 : -1), 0), items.length - 1);
+        items[next].focus();
+      } else if ((e.key === "Enter" || e.key === " ") && i > -1) {
+        e.preventDefault();
+        pickOption(dd, items[i]);
+      }
+    });
+    document.addEventListener("click", (e) => { if (!e.target.closest(".dd")) closeAllDropdowns(); });
+
+    // ---------- pilih karakter ----------
+    function setPersona(name, changeTheme) {
+      state.persona = name;
+      $("greet").textContent = PERSONAS[name].greet;
+      $("indicator").classList.toggle("right", name === "miku");
+      document.querySelectorAll("[data-persona]").forEach((b) => b.classList.toggle("active", b.dataset.persona === name));
+      if (changeTheme) setTheme(getBase(), PERSONAS[name].accent);
+      saveState();
+    }
+    document.querySelectorAll("[data-persona]").forEach((b) =>
+      b.addEventListener("click", () => setPersona(b.dataset.persona, true))
+    );
+
+    // ---------- mode: buat dari awal atau lanjutkan web ----------
+    function setMode(m) {
+      state.mode = m;
+      $("indicatorMode").classList.toggle("right", m === "next");
+      document.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === m));
+      $("msg").textContent = "";
+      renderForm();
+      saveState();
+    }
+    document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+
+    // ---------- tab responsif ----------
+    let activeTab = "form";
+    function applyResponsivePanels() {
+      const desktop = window.matchMedia("(min-width: 901px)").matches;
+      // Desktop menampilkan kedua panel. Tablet/mobile hanya menampilkan tab aktif.
+      $("tab-form").hidden = !desktop && activeTab !== "form";
+      $("tab-result").hidden = !desktop && activeTab !== "result";
+      document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.tab === activeTab));
+    }
+    function showTab(name) {
+      activeTab = name;
+      applyResponsivePanels();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+    window.addEventListener("resize", applyResponsivePanels, { passive: true });
+    applyResponsivePanels();
+
+    // Panel fixed mulai di bawah header, lalu naik ke tepi viewport setelah header lewat.
+    function updateResultPanelPosition() {
+      const desktop = window.matchMedia("(min-width: 901px)").matches;
+      document.body.classList.toggle("has-scrolled", desktop && window.scrollY > 180);
+    }
+    window.addEventListener("scroll", updateResultPanelPosition, { passive: true });
+    window.addEventListener("resize", updateResultPanelPosition, { passive: true });
+    updateResultPanelPosition();
+
+    // ---------- cek konsistensi isian (tidak memblokir, hanya memperingatkan) ----------
+    function checkConsistency() {
+      const w = [];
+      if (state.mode === "next") {
+        if (!state.inChat && String(state.prevHtml || "").length > 60000) w.push("Kode HTML cukup panjang. Kalau masih di obrolan AI yang sama, centang opsi kode sudah ada di obrolan supaya prompt lebih ringkas.");
+        if (!state.inChat && !/<(html|div|section|body|style)/i.test(state.prevHtml || "")) w.push("Teks yang ditempel tidak terlihat seperti kode HTML. Pastikan isinya benar.");
+        if (/Menggantikan/.test(state.where) && !String(state.target || "").trim()) w.push("Posisi dipilih menggantikan section tertentu, tapi nama section target kosong.");
+        return w;
+      }
+      const lead = /Lead|Pendaftaran|Booking/.test(state.goal);
+      if (lead && /Beli/.test(state.cta)) w.push(`Tujuan halaman "${state.goal}" tapi tombolnya "${state.cta}". Tujuan dan tombol sebaiknya searah.`);
+      if (/Penjualan/.test(state.goal) && !digits(state.price) && !digits(state.promo)) w.push("Tujuannya penjualan langsung, tapi harga masih kosong.");
+      if (digits(state.price) && digits(state.promo) && Number(digits(state.promo)) >= Number(digits(state.price))) w.push("Harga promo tidak lebih murah dari harga normal, jadi kontras harganya hilang.");
+      if (state.scar !== "Tidak ada" && !String(state.scarVal || "").trim()) w.push("Kelangkaan dipilih tapi detailnya kosong. Prompt akan meminta AI memakai [ISI DI SINI] supaya angkanya tidak dikarang.");
+      if (state.bonus && !String(state.bonusTxt || "").trim()) w.push("Bonus dicentang tapi rinciannya kosong.");
+      if (state.plat !== "Satu file HTML" && state.css.startsWith("Tailwind")) w.push(`Tailwind lewat CDN sering diblokir platform embed seperti ${state.plat}. CSS biasa lebih aman.`);
+      return w;
+    }
+
+    // ---------- merakit prompt mode LANJUTKAN WEB ----------
+    const CHANGE_RULE = {
+      "Tambah varian produk": "Varian baru memakai struktur kartu atau item yang sama persis dengan varian yang sudah ada. Salin pola yang ada, jangan membuat pola baru.",
+      "Tambah style atau warna baru": "Style atau warna baru ditambahkan sebagai opsi tambahan, tanpa menghapus yang lama.",
+      "Tambah section baru": "Section baru mengikuti pola section yang sudah ada dan mengarah ke CTA yang sama.",
+      "Ubah copy atau teks": "Pertahankan panjang dan struktur kalimat sejauh memungkinkan, dan jaga alur framework yang sudah dipakai.",
+      "Ubah harga dan penawaran": "Perbarui harga di semua tempat yang memuatnya (hero, tabel harga, CTA, FAQ) supaya konsisten.",
+      "Perbaikan tampilan atau bug": "Perbaiki masalahnya saja tanpa mengubah hal lain.",
+      "Ganti gaya visual": "Ubah hanya lapisan visual (warna, tipografi, spasi), bukan isi atau struktur."
+    };
+    function buildNext() {
+      const p = PERSONAS[state.persona];
+      const NEED = "[ISI DI SINI]";
+      const L = [];
+      const add = (label, v) => { if (v && String(v).trim()) L.push(`- ${label}: ${String(v).trim()}`); };
+
+      L.push("PERAN", "Kamu adalah front-end developer sekaligus conversion copywriter yang ahli merevisi landing page yang sudah ada tanpa merusak bagian lain.", "");
+      L.push("TUGAS", `Lanjutkan landing page "${state.pname.trim()}" yang sudah ada. Lakukan perubahan di bawah ini dan jangan membangun ulang dari nol.`, "");
+      L.push("HALAMAN YANG SUDAH ADA",
+        state.inChat ? "Kode HTML lengkap ada di pesan sebelumnya dalam obrolan ini. Jadikan itu satu-satunya acuan."
+                     : "Kode HTML saat ini ada di blok paling akhir prompt ini. Jadikan itu satu-satunya acuan.");
+      add("Bentuk halaman", state.ptype);
+
+      L.push("", "PERUBAHAN YANG DIMINTA");
+      add("Jenis perubahan", state.change); add("Posisi", state.where); add("Section target", state.target);
+      add("Harga varian baru", fmtRp(state.price2));
+      L.push("- Detail:");
+      String(state.detail).trim().split("\n").forEach((x) => L.push("  " + x.trim()));
+
+      L.push("", "ATURAN WAJIB",
+        "- Ubah hanya yang diminta. Semua bagian lain harus tetap identik, karakter demi karakter.");
+      if (state.keep.length) L.push(`- Pertahankan tanpa perubahan: ${state.keep.join(", ")}.`);
+      L.push("- Bagian baru memakai ulang komponen, class, variabel CSS, dan gaya yang sudah ada supaya tampil menyatu.",
+        "- " + CHANGE_RULE[state.change],
+        "- Jangan mengubah tujuan tombol CTA yang sudah ada kecuali diminta.",
+        `- Jangan mengarang data (harga, stok, testimoni, spesifikasi). Beri tanda ${NEED} bila datanya belum saya berikan.`);
+      if (state.ptype.startsWith("Fragmen")) L.push("- Halaman ini dipakai di platform embed. Tetap berbentuk fragmen dan jangan mengubahnya menjadi dokumen lengkap. Jangan menghapus !important pada background-color.");
+      if (state.safe) L.push('- Tetap patuhi kepatuhan iklan: hindari klaim berlebihan dan kata seperti "pasti", "jamin", "100%", dan "instan".');
+
+      L.push("", "FORMAT KELUARAN",
+        state.outFmt.startsWith("Kode HTML utuh") ? "Berikan kode HTML utuh versi terbaru dalam satu blok kode."
+          : "Berikan hanya blok yang berubah atau ditambah, masing-masing dengan keterangan lokasi (di bawah elemen mana, atau menggantikan blok mana) supaya mudah ditempel manual. Jangan menulis ulang bagian yang tidak berubah.",
+        "Di luar blok kode, tulis ringkasan perubahan maksimal 5 butir.");
+      L.push("", "GAYA OBROLAN",
+        `Pada balasan di luar blok kode (sapaan dan ringkasan, maksimal 3 kalimat selain butir ringkasan), bicaralah sebagai ${p.style} Isi halaman tetap memakai gaya copy yang sudah ada dan jangan memakai karakter ini.`);
+      if (!state.inChat) L.push("", "KODE HTML SAAT INI", "```html", String(state.prevHtml).trim(), "```");
+      return L.join("\n");
+    }
+
+    // ---------- merakit prompt mode BUAT DARI AWAL ----------
+    function buildPrompt() {
+      if (state.mode === "next") return buildNext();
+      const p = PERSONAS[state.persona];
+      const fw = state.fw.split(" ")[0];
+      const lvl = state.aware.split(" ")[0];
+      const embed = state.plat !== "Satu file HTML";
+      const single = state.layout.startsWith("Satu");
+      const scarType = state.scar.split(" ")[0];   // Tidak, Batas, Kuota, atau Harga
+      const scarVal = String(state.scarVal || "").trim();
+      const NEED = "[ISI DI SINI]";
+      const L = [];
+      const add = (label, v) => { if (v && String(v).trim()) L.push(`- ${label}: ${String(v).trim()}`); };
+
+      // hero "di samping" bentrok dengan layout satu kolom, jadi disesuaikan
+      let hero = state.hero;
+      if (single && hero.startsWith("Standar")) hero = "Standar (gambar di atas teks, karena layout satu kolom)";
+
+      L.push("PERAN", "Kamu adalah Senior Conversion Copywriter sekaligus front-end developer yang berpengalaman membuat landing page penjualan untuk traffic media sosial dan iklan.", "");
+      L.push("TUGAS", `Tulis landing page penjualan lengkap berstruktur HTML yang rapi dan persuasif${state.safe ? ", serta aman untuk kebijakan iklan Meta dan Google Ads" : ""}. Alur persuasi mengikuti framework ${fw} (${FRAMEWORKS[fw]}). Gunakan bahasa Indonesia dengan gaya ${state.tone.toLowerCase()}.`, "");
+
+      L.push("PRODUK DAN TUJUAN");
+      add("Nama produk", state.name); add("Tipe produk", state.type); add("Tujuan halaman", state.goal);
+      add("Deskripsi dan benefit", state.desc);
+
+      L.push("", "TARGET MARKET");
+      add("Audiens", state.aud); add("Level kesadaran", state.aware); add("Pendekatan copy untuk level ini", AWARENESS[lvl]);
+      add("Masalah dan ketakutan utama", state.pain);
+
+      L.push("", "PENAWARAN DAN KONVERSI");
+      add("Harga normal", fmtRp(state.price)); add("Harga promo", fmtRp(state.promo));
+      if (state.bonus) add("Bonus", state.bonusTxt || "ada bonus tambahan");
+      add("Tombol CTA utama", state.cta);
+      if (scarType !== "Tidak") add("Kelangkaan", `${state.scar}. Data nyata: ${scarVal || NEED}`);
+
+      // ---- struktur halaman ----
+      let n = 1;
+      L.push("", "STRUKTUR HALAMAN (urut dari atas, satu section satu tugas)");
+      L.push(`${n++}. HERO: hook yang menyentuh masalah utama audiens, bukan nama produk. Tata letak hero: ${hero}.`);
+      L.push(`${n++}. ISI HALAMAN mengikuti ${fw}:`);
+      FW_MAP[fw].forEach((s) => L.push(`   - ${s}`));
+      if (String(state.obj || "").trim()) L.push(`${n++}. PENANGANAN KERAGUAN: jawab keberatan "${state.obj.trim()}" dengan elegan, dalam bentuk FAQ atau blok reassurance.`);
+      const proof = state.el.includes("Social proof") || state.el.includes("Testimoni");
+      L.push(`${n++}. TRUST: reassurance${proof ? ", social proof, dan testimoni hanya dari data nyata. Bila datanya belum ada, buat kerangka kosong bertanda " + NEED : " yang jujur dan tidak berlebihan"}.`);
+      L.push(`${n++}. CONVERSION BLOCK: kontras harga normal dan promo${state.bonus ? ", tabel Total Value versus Harga Hari Ini untuk bonus (nilai bonus hanya dari data, selain itu " + NEED + ")" : ""}${scarType !== "Tidak" ? ", dan kelangkaan" : ""}.`);
+      const rest = state.el.filter((x) => x !== "Social proof" && x !== "Testimoni");
+      if (rest.length) L.push(`${n++}. SECTION TAMBAHAN: ${rest.join(", ")}.`);
+      L.push(`${n++}. PENUTUP: section paling bawah dengan id="order" berisi tombol CTA terakhir, dengan micro-copy kepercayaan di bawah setiap tombol CTA utama (misalnya cara akses atau keamanan pembayaran), tanpa mengarang fakta.`);
+
+      const act = state.ctaAct;
+      L.push(act.startsWith("Scroll") ? '- Semua tombol CTA memakai href="#order" agar scroll ke section penutup.'
+           : act.startsWith("Buka WhatsApp") ? `- Semua tombol CTA membuka WhatsApp lewat https://wa.me/${NEED} dengan teks pesan yang sudah terisi.`
+           : `- Semua tombol CTA membuka link checkout ${NEED} di tab yang sama.`);
+
+      // ---- desain ----
+      L.push("", "DESAIN");
+      add("Warna dominan", state.color);
+      add("Tema latar", state.theme === "Gelap" ? "dark mode di seluruh bagian, teks terang (putih atau abu) untuk keterbacaan"
+                      : state.theme === "Terang" ? "latar terang di seluruh bagian, teks gelap berkontras tinggi" : "ikuti gaya desain");
+      add("Gaya desain", state.style);
+      L.push(state.sticky ? "- Tambahkan sticky button CTA di bagian bawah layar pada tampilan mobile." : "- Tidak perlu sticky button.");
+
+      // ---- aturan teknis ----
+      L.push("", "ATURAN TEKNIS (wajib dipatuhi)");
+      if (single) L.push("- Layout satu kolom tunggal dari atas ke bawah. Jangan pakai grid multi-kolom.");
+      L.push(state.css.startsWith("Tailwind") ? "- Gunakan Tailwind CSS lewat script CDN." : "- Gunakan CSS biasa di dalam tag style, tanpa library eksternal selain Google Fonts.");
+      L.push(embed
+        ? `- Halaman akan ditempel ke ${state.plat}. Keluarkan fragmen saja (tag style dan satu div utama), bukan dokumen lengkap. Bungkus semuanya dalam div#lp-root, scope semua CSS di bawah #lp-root, dan beri background-color pada #lp-root dengan !important supaya tidak tertimpa CSS bawaan platform.`
+        : "- Berikan satu file HTML utuh yang siap dibuka langsung di browser.");
+      L.push("- Tombol dan link wajib memakai text-decoration: none !important, dan warna teks tombol wajib kontras tinggi terhadap latarnya dengan color: #... !important.");
+      L.push("- Gambar memakai placeholder https://placehold.co/600x400 dengan alt yang deskriptif, plus komentar HTML <!-- GANTI GAMBAR: deskripsi --> di tiap gambar. Ikon memakai SVG inline (gaya Lucide atau Heroicons).");
+      L.push("- Mudah di-skim: heading jelas, bullet point, paragraf pendek. Responsif dari HP sampai desktop.");
+      if (scarType === "Batas") L.push(`- Countdown: buat script JS sederhana dengan satu konstanta tanggal akhir yang mudah diganti, nilainya ${scarVal || NEED}.`);
+      if (scarType === "Kuota") L.push(`- Tampilkan teks "Sisa slot: ${scarVal || NEED}" hanya dengan angka dari data.`);
+      if (scarType === "Harga") L.push(`- Tampilkan info kenaikan harga hanya sesuai ketentuan ini: ${scarVal || NEED}.`);
+
+      // ---- aturan copy ----
+      L.push("", "ATURAN COPY",
+        "- Satu section punya satu tugas, dan tiap section mengarah ke CTA.",
+        `- Jangan mengarang testimoni, nama, angka, atau klaim yang tidak ada di data di atas. Beri tanda ${NEED} bila butuh data asli.`,
+        "- Jangan membuat urgensi palsu. Kelangkaan hanya boleh memakai data nyata dari saya.");
+      if (state.safe) L.push(
+        '- Kepatuhan iklan: hindari kata "pasti", "jamin", "dijamin", "100%", dan "instan". Tidak ada klaim medis, penghasilan, atau hasil yang tidak realistis. Gunakan kata seperti "dapat", "membantu", atau "berpotensi".',
+        "- Jangan menyebut atribut pribadi pembaca (usia, kondisi tubuh, keuangan) seolah-olah kamu mengetahuinya, dan jangan memakai before-after yang menyesatkan.");
+
+      L.push("", "FORMAT KELUARAN", embed ? "Fragmen HTML siap tempel dalam satu blok kode." : "Satu file HTML utuh dalam satu blok kode.");
+      L.push("", "GAYA OBROLAN",
+        `Pada balasan obrolan di luar blok kode (sapaan pembuka dan catatan penutup, maksimal 3 kalimat), bicaralah sebagai ${p.style} Isi landing page tetap memakai gaya bahasa copy di atas dan jangan memakai karakter ini.`);
+
+      return L.join("\n");
+    }
+
+    // ---------- tombol utama ----------
+    $("go").addEventListener("click", () => {
+      const required = state.mode === "next"
+        ? [["pname", "nama produk atau halaman"], ["detail", "detail perubahan"]].concat(state.inChat ? [] : [["prevHtml", "kode HTML sebelumnya"]])
+        : [["aud", "target audiens"], ["pain", "masalah audiens"], ["name", "nama produk"], ["desc", "deskripsi produk"]];
+      const empty = required.filter(([id]) => !String(state[id] || "").trim()).map(([, label]) => label);
+      if (empty.length) {
+        $("msg").textContent = PERSONAS[state.persona].missing(empty.join(", "));
+        return;
+      }
+      $("msg").textContent = "";
+      const warns = checkConsistency();
+      $("warn").innerHTML = warns.length
+        ? `${PERSONAS[state.persona].warnHead}<ul>${warns.map((w) => `<li>${w}</li>`).join("")}</ul>` : "";
+      $("out").textContent = buildPrompt();
+      showTab("result");
+    });
+
+    $("copy").addEventListener("click", async () => {
+      const btn = $("copy"), old = btn.textContent;
+      try {
+        await navigator.clipboard.writeText($("out").textContent);
+        btn.textContent = PERSONAS[state.persona].copied;
+      } catch (e) {
+        const r = document.createRange(); r.selectNodeContents($("out"));
+        const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+        btn.textContent = "Teks terpilih, tekan Ctrl+C";
+      }
+      setTimeout(() => (btn.textContent = old), 2200);
+    });
+
+    $("reset").addEventListener("click", () => {
+      try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+      location.reload();
+    });
+
+    /* ===================================================================
+       BAGIAN 3: TEMA DAN EFEK (disalin dari Neura)
+       =================================================================== */
+    const getBase = () => document.documentElement.getAttribute("data-base");
+    const getAccent = () => document.documentElement.getAttribute("data-accent");
+    const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const getPalette = () => [cssVar("--accent-primary"), cssVar("--accent-bright"), cssVar("--accent-secondary"), cssVar("--accent-particle")];
+
+    function setTheme(base, accent) {
+      document.documentElement.setAttribute("data-base", base);
+      document.documentElement.setAttribute("data-accent", accent);
+      try {
+        localStorage.setItem("neura-theme-base", base);
+        localStorage.setItem("neura-theme-accent", accent);
+      } catch (e) {}
+      refreshTriangles();
+      document.querySelectorAll("[data-base-opt]").forEach((b) => b.classList.toggle("active", b.dataset.baseOpt === base));
+      document.querySelectorAll("[data-accent-opt]").forEach((b) => b.classList.toggle("active", b.dataset.accentOpt === accent));
+    }
+
+    $("themeBtn").addEventListener("click", (e) => { e.stopPropagation(); $("themePopup").classList.toggle("open"); });
+    $("themePopup").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.dataset.baseOpt) setTheme(b.dataset.baseOpt, getAccent());
+      if (b.dataset.accentOpt) setTheme(getBase(), b.dataset.accentOpt);
+    });
+    document.addEventListener("click", () => $("themePopup").classList.remove("open"));
+
+    // segitiga ambient di header
+    const triangles = [];
+    function makeTriangles() {
+      for (let i = 0; i < 8; i++) {
+        const el = document.createElement("div");
+        const size = 14 + Math.random() * 22;
+        el.className = "triangle";
+        el.style.cssText = `width:${size}px;height:${size}px;left:${Math.random() * 90}%;top:${Math.random() * 70}%;animation-delay:${-Math.random() * 6}s`;
+        $("header").appendChild(el);
+        triangles.push({ el, idx: i % 4 });
+      }
+      refreshTriangles();
+    }
+    function refreshTriangles() {
+      const palette = getPalette();
+      triangles.forEach((t) => (t.el.style.background = palette[t.idx]));
+    }
+
+    // partikel saat klik
+    document.addEventListener("click", (e) => {
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const palette = getPalette();
+      for (let i = 0; i < 5; i++) {
+        const p = document.createElement("div");
+        const size = 5 + Math.random() * 15;
+        p.className = "click-particle";
+        p.style.cssText = `width:${size}px;height:${size}px;left:${e.pageX}px;top:${e.pageY}px;background:${palette[Math.floor(Math.random() * palette.length)]}`;
+        document.body.appendChild(p);
+        p.animate([
+          { transform: "translate(0,0) scale(1) rotate(0deg)", opacity: 1 },
+          { transform: `translate(${Math.random() * 100 - 50}px,${Math.random() * 100 - 50}px) scale(0) rotate(360deg)`, opacity: 0 }
+        ], { duration: 500 });
+        setTimeout(() => p.remove(), 500);
+      }
+    });
+
+    /* ---------- START ---------- */
+    makeTriangles();
+    setTheme(getBase(), getAccent());
+    setPersona(state.persona, false);
+    setMode(state.mode);
+  </script>
+</body>
+</html>
