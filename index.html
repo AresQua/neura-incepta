@@ -599,6 +599,21 @@
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
 
+    /* Tab berkas hasil (dipakai kategori yang menghasilkan lebih dari satu prompt) */
+    #fileTabs { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 14px; flex: 0 0 auto; }
+    #fileTabs:empty { display: none; }
+    .file-tab {
+      padding: 7px 12px; cursor: pointer;
+      border: 1px solid var(--border-line); border-radius: 999px;
+      background: var(--surface-deep); color: var(--muted-gray);
+      font: 600 .78rem "DM Sans", sans-serif;
+    }
+    .file-tab[aria-pressed="true"] {
+      background: color-mix(in srgb, var(--accent-primary) 15%, var(--surface-deep));
+      border-color: var(--accent-primary); color: var(--text-light);
+    }
+    @media (max-width: 600px) { .cat-selector .type-btn { font-size: .7rem; padding: 11px 3px; } }
+
   </style>
 </head>
 
@@ -673,6 +688,7 @@
       <div class="card accent">
         <h2>Hasil prompt</h2>
         <div id="warn"></div>
+        <div id="fileTabs" role="tablist" aria-label="Berkas hasil"></div>
         <pre id="out">Belum ada hasil. Isi form dulu, lalu tekan Buat prompt.</pre>
         <button class="submit-btn" id="copy" type="button">Salin prompt</button>
       </div>
@@ -1000,6 +1016,220 @@
       ]}
     ];
 
+
+    /* ===================================================================
+       DATA KATEGORI POSTER
+       Tiga jalur pembuatan:
+       - Hybrid: visual dari model gambar (tanpa teks) + teks dari kode HTML
+       - Kode saja: semuanya HTML atau CSS, teks 100% akurat
+       - Gambar saja: semuanya dari model gambar (teks rawan salah huruf)
+       Mau tambah jenis poster? Tambah satu entri di POSTER_TYPES.
+       =================================================================== */
+    const PS_ROUTES = [
+      "Hybrid (visual dari model gambar, teks dari kode), disarankan",
+      "Kode saja (HTML, teks 100% akurat)",
+      "Gambar saja (semua dari model gambar)"
+    ];
+    // vbW dan vbH = ukuran kanvas SVG dalam piksel (A4 dan A3 pada 96 dpi)
+    const PS_SIZE = {
+      "Instagram feed (1080 x 1350, 4:5)": { w: 1080, h: 1350, unit: "px", ratio: "4:5", vbW: 1080, vbH: 1350 },
+      "Instagram story (1080 x 1920, 9:16)": { w: 1080, h: 1920, unit: "px", ratio: "9:16", vbW: 1080, vbH: 1920 },
+      "Persegi (1080 x 1080, 1:1)": { w: 1080, h: 1080, unit: "px", ratio: "1:1", vbW: 1080, vbH: 1080 },
+      "Landscape (1920 x 1080, 16:9)": { w: 1920, h: 1080, unit: "px", ratio: "16:9", vbW: 1920, vbH: 1080 },
+      "A4 potret (21 x 29,7 cm)": { w: 210, h: 297, unit: "mm", ratio: "2:3", vbW: 794, vbH: 1123, print: true },
+      "A3 potret (29,7 x 42 cm)": { w: 297, h: 420, unit: "mm", ratio: "2:3", vbW: 1123, vbH: 1587, print: true }
+    };
+    const PS_STYLE = {
+      "Minimalis modern": "minimalist modern style, lots of whitespace, restrained palette",
+      "Bold dan ramai": "bold, vibrant, high-energy style with strong shapes and saturated colors",
+      "Elegan premium": "elegant premium style, refined and luxurious with subtle details",
+      "Playful dan ceria": "playful cheerful style with friendly shapes and bright colors",
+      "Editorial majalah": "editorial magazine style with a styled composition and strong typography",
+      "Retro vintage": "retro vintage poster style with a printed feel",
+      "Flat ilustrasi": "flat vector illustration style with clean shapes"
+    };
+    const PS_SPACE = {
+      "Bagian atas": "top", "Bagian bawah": "bottom", "Sisi kiri": "left side", "Sisi kanan": "right side", "Atas dan bawah": "top and bottom"
+    };
+    const PS_TEXTMODE = [
+      "Tanpa teks di gambar, sisakan ruang kosong (disarankan)",
+      "Hanya judul utama yang ditulis AI",
+      "Teks lengkap dari saya (risiko salah huruf tinggi)"
+    ];
+    const PS_CODEFMT = [
+      "HTML dan CSS (ekspor lewat Cetak ke PDF atau tangkapan layar)",
+      "SVG di dalam HTML (ada tombol Unduh PNG)"
+    ];
+    const PS_FONT = {
+      "Sans bersih (modern)": "huruf sans-serif yang bersih dan modern",
+      "Serif elegan": "huruf serif yang elegan",
+      "Display tebal (judul besar)": "judul memakai huruf display yang tebal dan besar, isi memakai sans-serif",
+      "Kombinasi serif dan sans": "judul memakai serif, isi memakai sans-serif"
+    };
+    const INFO_LAYOUT = {
+      "Langkah berurutan (proses)": "a step-by-step flow with numbered stages connected by arrows, reading from top to bottom",
+      "Timeline": "a vertical timeline with milestones along a central line",
+      "Perbandingan dua sisi": "a two-column comparison with a clear divider and matching rows",
+      "Statistik utama (angka besar)": "big-number statistic cards, each with a short label",
+      "Daftar poin bergambar": "an icon list where each point has a simple icon"
+    };
+    const PS_AGE = {
+      "Anak (SD)": "children in elementary school, simple and playful",
+      "Remaja": "teenagers, trendy and clear",
+      "Dewasa umum": "a general adult audience",
+      "Profesional": "working professionals, clean and credible"
+    };
+
+    // pembuat kolom singkat: pf(id, tipe, label, hint, opsi tambahan)
+    const pf = (id, type, label, hint, o) => Object.assign({ id, type, label, hint, full: true }, o || {});
+
+    // Tiap jenis poster: kolom form, kolom wajib, daftar teks (urut dari yang terbesar), dan petunjuk visual.
+    // texts() = teks yang BOLEH tampil di poster. Elemen yang kosong otomatis dilewati.
+    const POSTER_TYPES = {
+      "Iklan atau promo produk": {
+        kind: "a promotional advertising poster",
+        fields: [
+          pf("posHead", "text", "Judul utama (headline)", "Singkat dan jelas. Contoh: Diskon Akhir Tahun", { req: true }),
+          pf("posSub", "text", "Subjudul (opsional)", "Contoh: Kopi susu gula aren favorit kantor"),
+          pf("psProd", "text", "Produk atau layanan", "Contoh: kopi susu gula aren botol 250 ml", { req: true }),
+          pf("psOffer", "text", "Penawaran (harga, diskon, bonus)", "Contoh: Diskon 20% sampai 30 November"),
+          pf("psPoints", "area", "Keunggulan, satu per baris (maksimal 4)", "Contoh:\nTanpa pengawet\nGula aren asli"),
+          pf("psCta", "text", "Ajakan bertindak", "Contoh: Pesan lewat WhatsApp", { full: false }),
+          pf("psContact", "text", "Kontak atau alamat (tulis persis)", "Contoh: 0812-3456-7890", { full: false })
+        ],
+        required: [["posHead", "judul utama"], ["psProd", "produk atau layanan"]],
+        texts: () => [
+          { en: "headline", id: "Judul utama", size: "terbesar", text: val("posHead") },
+          { en: "subheadline", id: "Subjudul", size: "sedang", text: val("posSub") },
+          { en: "offer (highlighted)", id: "Penawaran (disorot)", size: "besar dan mencolok", text: val("psOffer") },
+          { en: "key points, one per line", id: "Poin keunggulan", size: "sedang", text: lines(val("psPoints")).join("\n") },
+          { en: "call to action", id: "Ajakan bertindak", size: "menonjol seperti tombol atau pita", text: val("psCta") },
+          { en: "contact", id: "Kontak", size: "kecil tapi mudah terbaca", text: val("psContact") }
+        ],
+        context: () => `product or service: ${val("psProd")}`,
+        visual: () => "an appealing hero visual of the product or its use",
+        layout: () => "the product or its use is the visual hero, with a large offer callout and a clear call-to-action area"
+      },
+      "Promosi kegiatan atau event": {
+        kind: "an event promotion poster",
+        fields: [
+          pf("posHead", "text", "Nama acara", "Contoh: Workshop Fotografi Ponsel", { req: true }),
+          pf("posSub", "text", "Subjudul atau tema (opsional)", "Contoh: Belajar dari nol bersama praktisi"),
+          pf("psDate", "text", "Tanggal dan jam", "Contoh: Sabtu, 12 Desember 2026, 09.00 sampai 12.00 WIB", { req: true }),
+          pf("psPlace", "text", "Lokasi", "Contoh: Aula Perpustakaan Kota Bogor", { req: true }),
+          pf("psGuests", "area", "Pengisi acara atau agenda (opsional)", "Satu per baris. Contoh: Rina Putri, fotografer"),
+          pf("psFee", "text", "Biaya (opsional)", "Contoh: Gratis", { full: false }),
+          pf("psReg", "text", "Cara daftar atau kontak", "Contoh: Daftar di bit.ly/workshopfoto", { full: false })
+        ],
+        required: [["posHead", "nama acara"], ["psDate", "tanggal dan jam"], ["psPlace", "lokasi"]],
+        texts: () => [
+          { en: "event name (headline)", id: "Nama acara", size: "terbesar", text: val("posHead") },
+          { en: "subheadline", id: "Subjudul", size: "sedang", text: val("posSub") },
+          { en: "date and time", id: "Tanggal dan jam", size: "besar", text: val("psDate") },
+          { en: "venue", id: "Lokasi", size: "besar", text: val("psPlace") },
+          { en: "speakers or agenda, one per line", id: "Pengisi acara atau agenda", size: "sedang", text: lines(val("psGuests")).join("\n") },
+          { en: "fee", id: "Biaya", size: "sedang", text: val("psFee") },
+          { en: "how to register", id: "Cara daftar", size: "kecil tapi mudah terbaca", text: val("psReg") }
+        ],
+        context: () => `event: ${val("posHead")}`,
+        visual: () => "an atmosphere and imagery that match the event theme",
+        layout: () => "strong typographic hierarchy where the event name dominates and the date and venue are easy to find"
+      },
+      "Edukasi": {
+        kind: "an educational poster",
+        fields: [
+          pf("posHead", "text", "Judul", "Contoh: 5 Langkah Mencuci Tangan yang Benar", { req: true }),
+          pf("posSub", "text", "Subjudul (opsional)", ""),
+          pf("psPoints", "area", "Poin utama, satu per baris (3 sampai 5)", "Satu poin per baris, tulis persis seperti yang mau tampil.", { req: true }),
+          pf("psAge", "select", "Target pembaca", null, { options: Object.keys(PS_AGE) }),
+          pf("psSource", "text", "Sumber (opsional)", "Contoh: Kementerian Kesehatan RI")
+        ],
+        required: [["posHead", "judul"], ["psPoints", "poin utama"]],
+        texts: () => [
+          { en: "headline", id: "Judul", size: "terbesar", text: val("posHead") },
+          { en: "subheadline", id: "Subjudul", size: "sedang", text: val("posSub") },
+          { en: "numbered key points, one per line", id: "Poin utama (bernomor)", size: "sedang", text: lines(val("psPoints")).join("\n") },
+          { en: "source", id: "Sumber", size: "kecil", text: val("psSource") }
+        ],
+        context: () => `topic: ${val("posHead")}`,
+        visual: () => `a friendly illustration that explains the topic, suited for ${PS_AGE[state.psAge] || "a general audience"}`,
+        layout: () => "numbered key points in a clear reading order next to a friendly illustration, with plenty of breathing space"
+      },
+      "Infografis": {
+        kind: "an infographic poster",
+        fields: [
+          pf("posHead", "text", "Judul", "Contoh: Alur Pengajuan Beasiswa", { req: true }),
+          pf("posSub", "text", "Subjudul (opsional)", ""),
+          pf("psInfoType", "select", "Susunan infografis", null, { options: Object.keys(INFO_LAYOUT) }),
+          pf("psPoints", "area", "Isi infografis, satu item per baris", "Tulis persis seperti yang mau tampil. Angka hanya dari data nyatamu, jangan perkiraan.", { req: true }),
+          pf("psSource", "text", "Sumber data (disarankan)", "Contoh: BPS, 2025")
+        ],
+        required: [["posHead", "judul"], ["psPoints", "isi infografis"]],
+        texts: () => [
+          { en: "headline", id: "Judul", size: "terbesar", text: val("posHead") },
+          { en: "subheadline", id: "Subjudul", size: "sedang", text: val("posSub") },
+          { en: "items, one per line", id: "Item infografis", size: "sedang", text: lines(val("psPoints")).join("\n") },
+          { en: "data source", id: "Sumber data", size: "kecil", text: val("psSource") }
+        ],
+        context: () => `infographic topic: ${val("posHead")}`,
+        visual: () => "simple icons and shapes that support each item, with no decorative clutter",
+        layout: () => INFO_LAYOUT[state.psInfoType] || "a clear structured layout"
+      },
+      "Ucapan atau hari besar": {
+        kind: "a greeting poster for a special occasion",
+        fields: [
+          pf("psMoment", "text", "Ucapan utama (judul)", "Contoh: Selamat Hari Pahlawan", { req: true }),
+          pf("psMessage", "area", "Pesan ucapan", "Contoh: Semangat mereka menyala di setiap langkah kita.", { req: true }),
+          pf("psFrom", "text", "Dari (nama atau brand)", "Contoh: Keluarga Besar Toko Maju")
+        ],
+        required: [["psMoment", "ucapan utama"], ["psMessage", "pesan ucapan"]],
+        texts: () => [
+          { en: "greeting (headline)", id: "Ucapan utama", size: "terbesar", text: val("psMoment") },
+          { en: "message", id: "Pesan", size: "sedang", text: val("psMessage") },
+          { en: "from", id: "Dari", size: "kecil", text: val("psFrom") }
+        ],
+        context: () => `occasion: ${val("psMoment")}`,
+        visual: () => "thematic decorative elements that fit the occasion, warm and respectful",
+        layout: () => "a warm, centered composition with the greeting as the hero"
+      },
+      "Quote atau motivasi": {
+        kind: "a typographic quote poster",
+        fields: [
+          pf("psQuote", "area", "Kutipan (persis)", "Tulis persis seperti yang mau tampil.", { req: true }),
+          pf("psAuthor", "text", "Penulis atau sumber", "Contoh: Nama Penulis")
+        ],
+        required: [["psQuote", "kutipan"]],
+        texts: () => [
+          { en: "quote", id: "Kutipan", size: "terbesar", text: val("psQuote") },
+          { en: "author", id: "Penulis", size: "kecil", text: val("psAuthor") }
+        ],
+        context: () => "a quote poster",
+        visual: () => "minimal supporting graphics that never compete with the quote",
+        layout: () => "large expressive typography is the hero, with generous empty space around it"
+      },
+      "Pengumuman atau lowongan": {
+        kind: "an announcement poster",
+        fields: [
+          pf("posHead", "text", "Judul pengumuman atau posisi", "Contoh: Dibuka Lowongan Admin Gudang", { req: true }),
+          pf("posSub", "text", "Subjudul (opsional)", ""),
+          pf("psPoints", "area", "Syarat atau poin penting, satu per baris", "Tulis persis seperti yang mau tampil."),
+          pf("psDeadline", "text", "Batas waktu (opsional)", "Contoh: Paling lambat 30 November 2026", { full: false }),
+          pf("psContact", "text", "Kontak atau cara melamar", "Contoh: kirim CV ke hrd@contoh.com", { req: true, full: false })
+        ],
+        required: [["posHead", "judul pengumuman"], ["psContact", "kontak atau cara melamar"]],
+        texts: () => [
+          { en: "headline", id: "Judul", size: "terbesar", text: val("posHead") },
+          { en: "subheadline", id: "Subjudul", size: "sedang", text: val("posSub") },
+          { en: "requirements or key points, one per line", id: "Syarat atau poin penting", size: "sedang", text: lines(val("psPoints")).join("\n") },
+          { en: "deadline (highlighted)", id: "Batas waktu (disorot)", size: "besar", text: val("psDeadline") },
+          { en: "contact", id: "Kontak", size: "sedang", text: val("psContact") }
+        ],
+        context: () => `announcement: ${val("posHead")}`,
+        visual: () => "a clean, professional visual motif that fits the organization",
+        layout: () => "a clean structured layout where the important facts are grouped and easy to scan"
+      }
+    };
+
     /* ===================================================================
        BAGIAN 2: LOGIKA PROGRAM
        =================================================================== */
@@ -1019,7 +1249,7 @@
       return Object.assign({ persona: "neru", el: [], plat: "Satu file HTML", safe: true, mode: "new",
         keep: ["Gaya visual", "Copy bagian lain", "Struktur section", "Warna brand", "Tujuan tombol CTA"],
         // kategori gambar: kolom centang dan chips perlu nilai awal di sini
-        cat: "web", lgVibe: [], lgGrad: false, pdPhoto: true, pdSafe: true }, saved);
+        cat: "web", lgVibe: [], lgGrad: false, pdPhoto: true, pdSafe: true, posSafe: true }, saved);
     }
     function saveState() {
       try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -1136,6 +1366,10 @@
       closeAllDropdowns();
       dd.querySelector(".dd-btn").focus();
       saveState();
+      // beberapa pilihan (misalnya jenis poster) mengubah kolom yang tampil, jadi form digambar ulang
+      const id = dd.dataset.dd;
+      const f = currentSections().reduce((a, sec) => a.concat(sec.fields), []).find((x) => x.id === id);
+      if (f && f.rerender) { renderForm(); const b = $(id); if (b) b.focus(); }
     }
     $("formArea").addEventListener("click", (e) => {
       const dd = e.target.closest(".dd");
@@ -1386,6 +1620,7 @@
 
     // ---------- perakit prompt gambar (dipakai kategori Logo dan Gambar produk) ----------
     const val = (k) => String(state[k] || "").trim();
+    const lines = (s) => String(s || "").split("\n").map((x) => x.trim()).filter(Boolean);
     const colorEn = (v) => IMG_COLOR[v] || "";
     const ratioOf = (v) => String(v || "1:1").split(" ")[0];
     const hexOf = (v) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(v || "").trim()); return m ? "#" + m[1].toUpperCase() : ""; };
@@ -1557,6 +1792,228 @@
       return w;
     }
 
+
+    // ---------- kategori POSTER ----------
+    const posRoute = () => (String(state.posRoute || "").startsWith("Hybrid") ? "hybrid" : String(state.posRoute || "").startsWith("Kode") ? "code" : "image");
+    const posType = () => POSTER_TYPES[state.posType] || POSTER_TYPES[Object.keys(POSTER_TYPES)[0]];
+    const posSize = () => PS_SIZE[state.posSize] || PS_SIZE[Object.keys(PS_SIZE)[0]];
+    const posTextMode = () => { const v = String(state.posText || ""); return v.startsWith("Hanya") ? "headline" : v.startsWith("Teks") ? "full" : "none"; };
+    const posSvg = () => String(state.posCodeFmt || "").startsWith("SVG");
+    const posterTexts = () => posType().texts().filter((x) => String(x.text || "").trim());
+
+    // Form poster berubah sesuai jenis poster dan jalur yang dipilih (kolom bertanda rerender memicu gambar ulang)
+    function posterSections() {
+      const route = posRoute();
+      const S = [];
+      S.push({ title: "Jenis poster dan cara membuat", fields: [
+        { id: "posType", label: "Jenis poster", type: "select", full: true, rerender: true, options: Object.keys(POSTER_TYPES) },
+        { id: "posRoute", label: "Cara membuat", type: "select", full: true, rerender: true, options: PS_ROUTES },
+        { id: "posSize", label: "Ukuran dan rasio", type: "select", full: true, options: Object.keys(PS_SIZE) }
+      ]});
+      S.push({ title: "Isi poster", fields: posType().fields });
+      S.push({ title: "Visual dan gaya", fields: [
+        { id: "posStyle", label: "Gaya visual", type: "select", full: true, options: Object.keys(PS_STYLE) },
+        { id: "posColor", label: "Warna dominan", type: "select",
+          options: ["Biar AI yang menentukan", "Netral atau monokrom", "Biru", "Hijau", "Merah", "Oranye", "Ungu", "Kuning", "Pastel"] },
+        { id: "posTheme", label: "Tema tonal", type: "select", options: Object.keys(PD_THEME) },
+        { id: "posVisual", label: "Ide visual atau motif utama (opsional)", type: "text", full: true,
+          hint: "Contoh: tangan memegang gelas kopi dengan uap, siluet kota di senja" }
+      ]});
+      const out = [];
+      if (route === "image") {
+        out.push({ id: "posText", label: "Teks di dalam gambar", type: "select", full: true, rerender: true, options: PS_TEXTMODE });
+        if (posTextMode() !== "full") out.push({ id: "posSpace", label: "Posisi ruang kosong untuk teks", type: "select", full: true, options: Object.keys(PS_SPACE) });
+        out.push({ id: "imgTool", label: "Alat pembuat gambar", type: "select", full: true, options: IMG_TOOLS });
+      }
+      if (route === "hybrid") {
+        out.push({ id: "imgTool", label: "Alat pembuat gambar (untuk visual latar)", type: "select", full: true, options: IMG_TOOLS });
+        out.push({ id: "posSpace", label: "Posisi ruang kosong untuk teks", type: "select", full: true, options: Object.keys(PS_SPACE) });
+      }
+      if (route !== "image") {
+        out.push({ id: "posCodeFmt", label: "Format kode", type: "select", full: true, options: PS_CODEFMT });
+        out.push({ id: "posFont", label: "Gaya huruf", type: "select", full: true, options: Object.keys(PS_FONT) });
+      }
+      if (route === "code") out.push({ id: "posPhotoSlot", label: "Sediakan slot foto yang bisa diganti lewat tombol Pilih foto", type: "check", full: true });
+      out.push({ id: "posSafe", label: "Mode aman iklan: jangan menambah klaim, janji hasil, atau kata terlarang di luar teks yang kuberikan", type: "check", full: true });
+      S.push({ title: "Hasil dan alat", fields: out });
+      return S;
+    }
+
+    // ---------- prompt untuk model gambar (jalur Gambar saja, dan visual latar di jalur Hybrid) ----------
+    function posterImagePrompt(bgOnly) {
+      const t = posType(), size = posSize();
+      const mode = bgOnly ? "none" : posTextMode();
+      const texts = posterTexts();
+      const space = PS_SPACE[state.posSpace] || "top";
+      const col = colorEn(state.posColor);
+      const theme = PD_THEME[state.posTheme] || "";
+
+      const content = [];
+      if (mode === "none") {
+        if (bgOnly) content.push("this image is only the visual background of a poster, the text will be added separately");
+        content.push("no text, letters, numbers or logos anywhere in the image");
+        content.push(`keep a calm, uncluttered area at the ${space} with good contrast so text can be placed there later`);
+      } else if (mode === "headline") {
+        const h = texts[0];
+        content.push(`${h.en}, written exactly as: "${h.text.replace(/\n/g, " ")}"`);
+        content.push("spell it exactly as written and do not add any other text anywhere in the image");
+        content.push(`keep a calm, uncluttered area at the ${space} so more text can be added later`);
+      } else {
+        texts.forEach((x) => content.push(`${x.en}: "${x.text.replace(/\n/g, " / ")}"`));
+        content.push("write every text exactly as given, with identical spelling, numbers and punctuation");
+        content.push("do not add, translate, shorten or invent any other text");
+      }
+
+      const subject = [t.context()];
+      subject.push(val("posVisual") ? `main visual idea: ${val("posVisual")}` : t.visual());
+      if (!bgOnly) subject.push(`composition: ${t.layout()}`);
+
+      const style = [PS_STYLE[state.posStyle]];
+      if (col) style.push(`${col} dominant color palette`);
+      if (theme) style.push(theme);
+
+      const neg = ["watermark", "blurry or low resolution", "cluttered composition", "distorted objects or anatomy"];
+      neg.unshift(mode === "none" ? "any text, letters, numbers or logos" : "misspelled, garbled or extra text");
+
+      return renderImagePrompt({
+        intro: bgOnly ? `a poster background visual, for ${t.kind}` : t.kind,
+        groups: [{ title: "TEXT ON THE POSTER", items: content }, { title: "SUBJECT AND VISUAL", items: subject },
+                 { title: "STYLE", items: style },
+                 { title: "DESIGN RULES", items: ["clear visual hierarchy with one strong focal point",
+                   "balanced composition with generous margins so nothing important is cropped", "clean, professional poster look"], mj: false }],
+        negatives: neg,
+        ratio: size.ratio,
+        tail: ["one image only"]
+      });
+    }
+
+    // ---------- prompt untuk AI chat agar membuat poster sebagai kode (jalur Kode dan Hybrid) ----------
+    function posterCodePrompt(hybrid) {
+      const t = posType(), size = posSize(), svg = posSvg(), texts = posterTexts();
+      const p = PERSONAS[state.persona];
+      const dim = `${size.w}${size.unit} x ${size.h}${size.unit}`;
+      const space = String(state.posSpace || "Bagian atas").toLowerCase();
+      const slot = hybrid || !!state.posPhotoSlot;
+      const L = [];
+
+      L.push("PERAN", "Kamu adalah desainer grafis sekaligus front-end developer yang membuat poster dalam bentuk kode. Semua teks di poster harus 100% sama dengan yang saya berikan.", "");
+      L.push("TUGAS", `Buat SATU file HTML utuh (CSS dan JavaScript di dalam file yang sama) yang menampilkan satu poster berjenis "${state.posType}" berukuran ${dim} (rasio ${size.ratio}${size.unit === "mm" ? ", siap cetak" : ""}).`, "");
+
+      L.push("TEKS POSTER (SALIN PERSIS)",
+        "Gunakan teks di bawah apa adanya, termasuk ejaan, angka, tanda baca, dan huruf besar kecil. Jangan menerjemahkan, menyingkat, memperbaiki, atau menambah teks lain. Elemen yang tidak ada di daftar tidak boleh dibuat.");
+      texts.forEach((x) => {
+        const multi = x.text.includes("\n");
+        L.push(`- ${x.id} (ukuran ${x.size}):` + (multi ? "\n" + x.text.split("\n").map((r) => "    * " + r.trim()).join("\n") : " " + x.text));
+      });
+      L.push("- Kalau teks terlalu panjang untuk muat, kecilkan ukuran huruf atau atur ulang tata letak. Jangan memotong teks.", "");
+
+      L.push("TATA LETAK",
+        `- Komposisi: ${t.layout()}.`,
+        "- Urutan ukuran huruf mengikuti daftar teks di atas, dari terbesar ke terkecil, dengan satu titik fokus utama.",
+        "- Margin aman minimal 6% dari setiap tepi poster.");
+      if (hybrid) L.push(`- Gambar latar punya area tenang di ${space}. Letakkan blok teks utama di area itu dan atur elemen lain mengikutinya.`);
+      L.push("");
+
+      L.push("DESAIN", `- Gaya visual: ${state.posStyle}.`);
+      if (colorEn(state.posColor)) L.push(`- Warna dominan: ${state.posColor}.`);
+      if (PD_THEME[state.posTheme]) L.push(`- Tema tonal: ${state.posTheme}.`);
+      L.push(`- Huruf: ${PS_FONT[state.posFont] || PS_FONT[Object.keys(PS_FONT)[0]]}.`);
+      L.push(svg
+        ? "- Font hanya dari font sistem (misalnya Georgia, Arial, Helvetica, system-ui, dengan cadangan), karena font eksternal tidak ikut saat poster diekspor sebagai PNG."
+        : "- Font boleh dari Google Fonts lewat tag link, dengan cadangan font sistem.");
+      if (hybrid) {
+        L.push("- Gambar latar: sediakan elemen gambar latar penuh (object-fit: cover) yang awalnya berupa placeholder berpola bertuliskan \"Pilih gambar latar\". Gambar aslinya dibuat terpisah dan dipilih lewat tombol di toolbar. Tambahkan lapisan gradasi tipis di atas gambar supaya teks tetap kontras.");
+      } else if (slot) {
+        L.push("- Sediakan satu slot foto utama (object-fit: cover) berisi placeholder berpola bertuliskan \"Pilih foto\", yang diganti lewat tombol di toolbar.");
+      } else {
+        L.push(`- Tanpa foto. Wujudkan visual dengan bentuk CSS atau SVG inline (pola, ikon, ilustrasi geometris)${val("posVisual") ? `. Motif yang diinginkan: ${val("posVisual")}` : ""}.`);
+      }
+      if (state.posType.startsWith("Infografis")) L.push("- Diagram digambar dengan CSS atau SVG. Angka hanya dari data di atas, jangan membuat statistik sendiri.");
+      L.push("");
+
+      L.push("ATURAN TEKNIS (wajib dipatuhi)");
+      L.push(svg
+        ? `- Poster berupa satu elemen <svg id="poster" viewBox="0 0 ${size.vbW} ${size.vbH}"> yang diletakkan di dalam halaman HTML. Semua isi poster ada di dalam SVG itu.`
+        : `- Poster berupa satu elemen <div id="poster"> berukuran tetap ${dim}. Semua isi poster ada di dalam elemen itu.`);
+      L.push("- Di luar poster ada toolbar kecil (class no-print) berisi tombol-tombol di bawah. Toolbar tidak boleh ikut tercetak atau terekspor.");
+      L.push("- Pratinjau di layar: skalakan tampilan poster supaya muat di jendela (JavaScript sederhana menghitung skala saat halaman dibuka dan saat ukuran jendela berubah). Skala hanya untuk tampilan layar, bukan untuk cetak atau ekspor.");
+      L.push("- Tanpa library eksternal dan tanpa gambar dari internet.");
+      if (svg) {
+        L.push("- Tombol toolbar: \"Unduh PNG\" (ubah SVG menjadi gambar, gambar ke canvas berskala 2, lalu unduh sebagai .png, tanpa library), \"Unduh SVG\", dan \"Cetak atau Simpan PDF\" (window.print()).",
+          "- SVG tidak membungkus teks otomatis. Pecah teks panjang menjadi beberapa baris <tspan>, perkirakan lebarnya, dan pastikan tidak keluar dari margin aman.");
+        if (slot) L.push("- Gambar yang dipilih pengguna dimasukkan sebagai data URL (<image href=\"data:...\">) supaya ekspor PNG tidak diblokir browser.");
+      } else {
+        L.push("- Tombol toolbar: \"Cetak atau Simpan PDF\" yang memanggil window.print().",
+          `- Pakai @page { size: ${size.w}${size.unit} ${size.h}${size.unit}; margin: 0 }, print-color-adjust: exact, dan di mode cetak poster tampil tepat satu halaman tanpa margin dan tanpa skala.`);
+      }
+      if (slot) L.push(`- Tombol \"${hybrid ? "Pilih gambar latar" : "Pilih foto"}\" membuka input file (accept=\"image/*\"), membacanya dengan FileReader sebagai data URL, lalu menampilkannya di slot gambar.`);
+      L.push("- Kontras teks terhadap latarnya minimal 4,5:1 dan semua teks harus terbaca jelas.");
+      if (state.posSafe) L.push("- Jangan menambah klaim, janji hasil, atau kata seperti \"pasti\", \"jamin\", \"100%\", dan \"instan\" yang tidak ada di teks saya.");
+
+      L.push("", "FORMAT KELUARAN", "Satu blok kode HTML utuh. Di luar blok kode, tulis catatan maksimal 3 baris.");
+      L.push("", "GAYA OBROLAN",
+        `Pada balasan di luar blok kode (maksimal 3 kalimat), bicaralah sebagai ${p.style} Isi poster tetap memakai gaya yang dijelaskan di atas dan jangan memakai karakter ini.`);
+      return L.join("\n");
+    }
+
+    function posterSteps(route) {
+      const hybrid = route === "hybrid", svg = posSvg();
+      const L = ["LANGKAH PAKAI", ""];
+      let n = 1;
+      if (hybrid) L.push(`${n++}. Buat visualnya dulu. Tempel 1_PROMPT_VISUAL.txt ke alat gambarmu lalu unduh hasilnya. Hasilnya harus tanpa teks. Kalau ada huruf di gambar, minta ulang atau pilih gambar lain.`);
+      L.push(`${n++}. Tempel ${hybrid ? "2_PROMPT_KODE.txt" : "PROMPT_KODE.txt"} ke ChatGPT, Claude, atau Gemini.`);
+      L.push(`${n++}. Salin blok kode dari balasannya. Tempel ke Notepad atau editor teks, lalu simpan dengan nama poster.html (pilih jenis file All files, bukan .txt).`);
+      L.push(`${n++}. Klik dua kali poster.html. Posternya tampil di browser.`);
+      if (hybrid) L.push(`${n++}. Klik tombol "Pilih gambar latar" di toolbar poster, lalu pilih gambar dari langkah pertama.`);
+      else if (state.posPhotoSlot) L.push(`${n++}. Klik tombol "Pilih foto" di toolbar poster, lalu pilih fotomu.`);
+      L.push(`${n++}. PERIKSA: bandingkan semua teks di poster dengan teks yang kamu tulis di form, karakter demi karakter, terutama tanggal, jam, harga, dan kontak.`);
+      L.push(`${n++}. Kalau ada yang salah, balas ke AI: "Ubah hanya bagian ... saja, jangan ubah yang lain."`);
+      L.push("", "CARA MENGEKSPOR");
+      if (svg) {
+        L.push("- PNG: klik tombol Unduh PNG di toolbar.", "- SVG: klik tombol Unduh SVG.", "- PDF: klik Cetak atau Simpan PDF, lalu pilih tujuan Save as PDF dengan margin None.");
+      } else {
+        L.push("- PDF: klik Cetak atau Simpan PDF, pilih tujuan Save as PDF, margin None, dan aktifkan Background graphics kalau ada pilihannya.",
+          "- PNG: di Chrome tekan F12, di tab Elements klik kanan elemen id=\"poster\", lalu pilih Capture node screenshot.");
+      }
+      L.push("", "CATATAN",
+        "- PDF paling tajam untuk cetak karena teksnya tetap vektor. Gambar latar tetap mengikuti resolusi aslinya, jadi perbesar (upscale) dulu kalau terlihat pecah.");
+      if (posSize().print) L.push("- Ukuran A4 dan A3 tidak ada di rasio standar model gambar. Visual dibuat dengan rasio 2:3, jadi tepinya bisa terpotong sedikit saat dipasang ke poster.");
+      return L.join("\n");
+    }
+
+    function buildPoster() {
+      const route = posRoute();
+      if (route === "image") return [{ name: "PROMPT_GAMBAR.txt", content: posterImagePrompt(false) }];
+      const files = [];
+      if (route === "hybrid") files.push({ name: "1_PROMPT_VISUAL.txt", content: posterImagePrompt(true) });
+      files.push({ name: route === "hybrid" ? "2_PROMPT_KODE.txt" : "PROMPT_KODE.txt", content: posterCodePrompt(route === "hybrid") });
+      files.push({ name: "LANGKAH.txt", content: posterSteps(route) });
+      return files;
+    }
+
+    function checkPoster() {
+      const w = [], route = posRoute(), size = posSize(), texts = posterTexts();
+      const all = texts.map((x) => x.text).join(" ");
+      const mode = posTextMode();
+      const pts = lines(val("psPoints")).length;
+      if (route === "image" && state.posType.startsWith("Infografis")) w.push("Infografis lewat model gambar sering salah teks dan angka. Pakai jalur Hybrid atau Kode supaya isinya akurat.");
+      if (route === "image" && mode === "full" && (all.length > 140 || lines(all).length > 6)) w.push("Teks yang diminta tampil di gambar cukup banyak. Model gambar mudah salah huruf kalau teksnya panjang. Pilih jalur Hybrid atau Kode, atau pakai pilihan Tanpa teks.");
+      if (route === "image" && mode === "headline" && texts[0] && texts[0].text.split(/\s+/).length > 8) w.push("Judul utama lebih dari 8 kata. Judul pendek jauh lebih aman ditulis model gambar.");
+      if (route === "image" && mode !== "none") w.push("Cek hasilnya huruf demi huruf, terutama tanggal, harga, dan kontak. Satu angka yang salah bisa merugikan.");
+      if (size.print && route !== "code") w.push("A4 dan A3 tidak ada di rasio standar model gambar, jadi prompt memakai 2:3 dan tepinya bisa terpotong sedikit. Hasil model gambar juga sering kurang tajam untuk cetak besar, jadi perlu di-upscale.");
+      if (route === "code" && val("posVisual") && !state.posPhotoSlot) w.push("Jalur Kode tidak membuat foto. Ide visualmu diwujudkan sebagai bentuk atau ilustrasi geometris. Untuk foto, centang slot foto atau pakai jalur Hybrid.");
+      if (route !== "image" && posSvg() && all.length > 220) w.push("Teksnya cukup panjang untuk format SVG, karena SVG tidak membungkus teks otomatis dan rawan keluar kotak. Pilih HTML dan CSS.");
+      if (state.posSafe) {
+        const risky = (all.match(/\b(pasti|jamin|dijamin|instan)\b|100\s?%/gi) || []);
+        if (risky.length) w.push(`Teks posternya memuat kata berisiko untuk iklan: ${esc([...new Set(risky.map((x) => x.toLowerCase()))].join(", "))}. Pertimbangkan diganti.`);
+      }
+      if (state.posType.startsWith("Iklan") && !val("psOffer")) w.push("Penawaran kosong. Poster iklan tanpa penawaran kurang mendorong orang bertindak.");
+      if (state.posType.startsWith("Iklan") && pts > 4) w.push(`Ada ${pts} poin keunggulan. Untuk satu poster, 4 atau kurang lebih mudah dibaca.`);
+      if ((state.posType === "Edukasi" || state.posType === "Infografis") && pts > 5) w.push(`Ada ${pts} item. Lebih dari 5 membuat poster padat dan teksnya mengecil.`);
+      if (state.posType.startsWith("Promosi") && val("psDate") && !/\d/.test(val("psDate"))) w.push("Tanggal dan jam tidak berisi angka. Pastikan tanggalnya jelas.");
+      return w;
+    }
+
     /* ---------- DAFTAR KATEGORI ----------
        Mau nambah kategori baru (misalnya Banner Iklan)? Cukup:
        1) bikin data pilihan dan SECTIONS_XXX di Bagian 1,
@@ -1585,6 +2042,13 @@
         required: () => [["pdName", "nama atau jenis produk"], ["pdDesc", "deskripsi tampilan produk"]],
         check: checkProduk,
         build: buildProduk
+      },
+      poster: {
+        label: "POSTER",
+        sections: posterSections,
+        required: () => posType().required,
+        check: checkPoster,
+        build: buildPoster
       }
     };
 
@@ -1605,9 +2069,30 @@
       $("modeCard").hidden = c !== "web";          // mode "lanjutkan web" hanya relevan untuk landing page
       $("msg").textContent = "";
       $("warn").innerHTML = "";
-      $("out").textContent = "Belum ada hasil. Isi form dulu, lalu tekan Buat prompt.";
+      showOutput([]);
       if (c === "web") setMode(state.mode); else { renderForm(); saveState(); }
     }
+
+    // ---------- hasil: satu prompt atau beberapa berkas (tab) ----------
+    const PLACEHOLDER = "Belum ada hasil. Isi form dulu, lalu tekan Buat prompt.";
+    let outFiles = [], activeFile = "";
+    function showOutput(files) {
+      outFiles = files;
+      activeFile = files.length ? files[0].name : "";
+      renderOutput();
+    }
+    function renderOutput() {
+      $("fileTabs").innerHTML = outFiles.length > 1
+        ? outFiles.map((f) => `<button type="button" class="file-tab" role="tab" aria-pressed="${f.name === activeFile}" data-file="${f.name}">${f.name}</button>`).join("") : "";
+      const cur = outFiles.find((f) => f.name === activeFile);
+      $("out").textContent = cur ? cur.content : PLACEHOLDER;
+    }
+    $("fileTabs").addEventListener("click", (e) => {
+      const b = e.target.closest(".file-tab");
+      if (!b) return;
+      activeFile = b.dataset.file;
+      renderOutput();
+    });
 
     // ---------- tombol utama ----------
     $("go").addEventListener("click", () => {
@@ -1621,7 +2106,8 @@
       const warns = cat.check();
       $("warn").innerHTML = warns.length
         ? `${PERSONAS[state.persona].warnHead}<ul>${warns.map((w) => `<li>${w}</li>`).join("")}</ul>` : "";
-      $("out").textContent = cat.build();
+      const res = cat.build();
+      showOutput(typeof res === "string" ? [{ name: "Prompt", content: res }] : res);
       showTab("result");
     });
 
